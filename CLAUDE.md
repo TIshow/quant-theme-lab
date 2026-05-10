@@ -13,9 +13,9 @@ pnpm run setup        # Python依存インストール（pip install -r requirem
 pnpm run test         # 全テスト実行（pytest tests/ -v）
 
 pnpm run universe                                           # Layer1: テーマ横断比較
-pnpm run pipeline -- --theme battery_storage               # Layer2: テーマ内分析
-pnpm run analyze -- --theme battery_storage --ticker 485A.T # Layer3: 個別銘柄（テーマ内）
-pnpm run analyze -- --ticker TSLA                          # Layer3: 個別銘柄（スタンドアロン）
+pnpm run pipeline --theme battery_storage               # Layer2: テーマ内分析
+pnpm run analyze --theme battery_storage --ticker 485A.T # Layer3: 個別銘柄（テーマ内）
+pnpm run analyze --ticker TSLA                          # Layer3: 個別銘柄（スタンドアロン）
 ```
 
 ## 3層アーキテクチャ
@@ -71,7 +71,7 @@ src/
 
 1. `config/universe.yaml` に銘柄を追加（`themes:` に新テーマ名と purity を記載）
 2. `config/themes/<new_theme>.yaml` を作成（既存テーマをコピーしてパラメータ変更）
-3. `pnpm run pipeline -- --theme <new_theme>` で実行
+3. `pnpm run pipeline --theme <new_theme>` で実行
 
 ## データ品質フラグ
 

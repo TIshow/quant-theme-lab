@@ -10,8 +10,6 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a != "--"]
-
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.stock.stock_analyzer import analyze_stock

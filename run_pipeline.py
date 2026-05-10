@@ -8,9 +8,6 @@ Usage:
 """
 import argparse
 import sys
-
-# pnpm passes '--' as a separator; remove it so argparse works correctly
-sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a != "--"]
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))

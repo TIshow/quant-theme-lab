@@ -11,8 +11,6 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.argv = [sys.argv[0]] + [a for a in sys.argv[1:] if a != "--"]
-
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.config.loader import load_universe, load_theme_config, list_available_themes

@@ -125,13 +125,13 @@ backtest:
 
 ```bash
 # テーマ内分析
-pnpm run pipeline -- --theme robotics
+pnpm run pipeline --theme robotics
 
 # テーマ横断比較（全テーマ）
 pnpm run universe
 
 # 個別銘柄分析
-pnpm run analyze -- --theme robotics --ticker 6501.T
+pnpm run analyze --theme robotics --ticker 6501.T
 ```
 
 ---
