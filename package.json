@@ -4,12 +4,12 @@
   "description": "Quantamental theme analysis platform",
   "private": true,
   "scripts": {
-    "setup": "pip install -r requirements.txt",
-    "universe": "python run_universe.py",
-    "pipeline": "python run_pipeline.py",
-    "analyze": "python analyze_stock.py",
-    "test": "pytest tests/ -v",
-    "validate": "python -m pytest tests/ -v --tb=short",
+    "setup": "uv sync",
+    "universe": "uv run python run_universe.py",
+    "pipeline": "uv run python run_pipeline.py",
+    "analyze": "uv run python analyze_stock.py",
+    "test": "uv run pytest tests/ -v",
+    "validate": "uv run pytest tests/ -v --tb=short",
     "format": "prettier --write \"data/reports/**/*.html\""
   },
   "devDependencies": {

@@ -1,5 +1,26 @@
 # CLAUDE.md — Quant Theme Lab
 
+## ⚠️ 絶対条件（違反禁止）
+
+- **Python の実行は必ず `pnpm run` 経由**。`python`・`pip`・`pytest` を直接叩くことは一切禁止。
+- **Python パッケージ管理は `uv`**。`pip install` は使わない。
+- **Python バージョン管理は `asdf`**。`pyenv`・`brew install python` 等は使わない。
+- パッケージ追加は `pyproject.toml` の `dependencies` に書いて `pnpm run setup`（= `uv sync`）で反映。
+- `requirements.txt` は存在しない。`pyproject.toml` が唯一の依存定義ファイル。
+
+```
+# ✅ 正しい
+pnpm run setup                          # uv sync
+pnpm run pipeline --theme battery_storage
+pnpm run test                           # uv run pytest
+
+# ❌ 絶対にやらない
+pip install xxx
+uv pip install xxx   （uv sync を使う）
+python run_pipeline.py
+pytest tests/
+```
+
 ## プロジェクト概要
 
 蓄電池・半導体・防衛・AIインフラなど複数の投資テーマを対象とした
@@ -9,8 +30,8 @@
 
 ```bash
 pnpm install          # JS依存インストール（prettier）
-pnpm run setup        # Python依存インストール（pip install -r requirements.txt）
-pnpm run test         # 全テスト実行（pytest tests/ -v）
+pnpm run setup        # Python依存インストール（uv sync）
+pnpm run test         # 全テスト実行（uv run pytest tests/ -v）
 
 pnpm run universe                                           # Layer1: テーマ横断比較
 pnpm run pipeline --theme battery_storage               # Layer2: テーマ内分析
