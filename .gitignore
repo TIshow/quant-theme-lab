@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Data files (generated — do not commit raw/processed data)
+data/raw/
+data/processed/
+data/reports/
+
+# Keep directory stubs
+!data/raw/prices/.gitkeep
+!data/processed/prices/.gitkeep
+!data/processed/factors/.gitkeep
+!data/processed/rankings/.gitkeep
+!data/processed/correlations/.gitkeep
+!data/processed/clusters/.gitkeep
+!data/processed/backtests/.gitkeep
+!data/processed/validation/.gitkeep
+!data/processed/theme_comparison/.gitkeep
+!data/reports/themes/.gitkeep
+!data/reports/stocks/.gitkeep
+!data/reports/universe/.gitkeep
+
+# Node.js
+node_modules/
+
+# Notebooks output
+.ipynb_checkpoints/
+notebooks/*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/

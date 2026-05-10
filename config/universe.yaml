@@ -1,0 +1,321 @@
+# Master stock registry
+# Each stock carries multi-theme memberships with theme_purity weights (1=low, 5=high).
+# Themes are lenses, not buckets — one stock can appear in multiple themes.
+
+stocks:
+  # ── Japan ──────────────────────────────────────────────────────────────────
+
+  - ticker: "485A.T"
+    name: "PowerX"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 5
+
+  - ticker: "6674.T"
+    name: "GS Yuasa"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 4
+
+  - ticker: "6752.T"
+    name: "Panasonic Holdings"
+    country: "JP"
+    sector: "technology"
+    themes:
+      battery_storage: 3
+
+  - ticker: "6762.T"
+    name: "TDK"
+    country: "JP"
+    sector: "technology"
+    themes:
+      battery_storage: 3
+      semiconductor: 2
+
+  - ticker: "5333.T"
+    name: "NGK Insulators"
+    country: "JP"
+    sector: "materials"
+    themes:
+      battery_storage: 4
+
+  - ticker: "6996.T"
+    name: "Nichicon"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 4
+
+  - ticker: "6504.T"
+    name: "Fuji Electric"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "3407.T"
+    name: "Asahi Kasei"
+    country: "JP"
+    sector: "materials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "4208.T"
+    name: "UBE"
+    country: "JP"
+    sector: "materials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "5714.T"
+    name: "DOWA Holdings"
+    country: "JP"
+    sector: "materials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "6857.T"
+    name: "Advantest"
+    country: "JP"
+    sector: "technology"
+    themes:
+      semiconductor: 5
+
+  - ticker: "8035.T"
+    name: "Tokyo Electron"
+    country: "JP"
+    sector: "technology"
+    themes:
+      semiconductor: 5
+
+  - ticker: "6723.T"
+    name: "Renesas Electronics"
+    country: "JP"
+    sector: "technology"
+    themes:
+      semiconductor: 4
+
+  - ticker: "4063.T"
+    name: "Shin-Etsu Chemical"
+    country: "JP"
+    sector: "materials"
+    themes:
+      semiconductor: 3
+
+  - ticker: "7011.T"
+    name: "Mitsubishi Heavy Industries"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      defense: 4
+
+  - ticker: "7012.T"
+    name: "Kawasaki Heavy Industries"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      defense: 4
+
+  - ticker: "9984.T"
+    name: "SoftBank Group"
+    country: "JP"
+    sector: "technology"
+    themes:
+      ai_infrastructure: 3
+
+  - ticker: "6954.T"
+    name: "Fanuc"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      ai_infrastructure: 3
+
+  # ── US ─────────────────────────────────────────────────────────────────────
+
+  - ticker: "TSLA"
+    name: "Tesla"
+    country: "US"
+    sector: "consumer_discretionary"
+    themes:
+      battery_storage: 3
+      ai_infrastructure: 3
+
+  - ticker: "FLNC"
+    name: "Fluence Energy"
+    country: "US"
+    sector: "utilities"
+    themes:
+      battery_storage: 5
+
+  - ticker: "ENS"
+    name: "EnerSys"
+    country: "US"
+    sector: "industrials"
+    themes:
+      battery_storage: 4
+
+  - ticker: "ALB"
+    name: "Albemarle"
+    country: "US"
+    sector: "materials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "EOSE"
+    name: "Eos Energy"
+    country: "US"
+    sector: "utilities"
+    themes:
+      battery_storage: 5
+
+  - ticker: "QS"
+    name: "QuantumScape"
+    country: "US"
+    sector: "technology"
+    themes:
+      battery_storage: 5
+
+  - ticker: "ENVX"
+    name: "Enovix"
+    country: "US"
+    sector: "technology"
+    themes:
+      battery_storage: 5
+
+  - ticker: "AMPX"
+    name: "Amprius"
+    country: "US"
+    sector: "technology"
+    themes:
+      battery_storage: 5
+
+  - ticker: "SLDP"
+    name: "Solid Power"
+    country: "US"
+    sector: "technology"
+    themes:
+      battery_storage: 5
+
+  - ticker: "ABAT"
+    name: "American Battery Technology"
+    country: "US"
+    sector: "materials"
+    themes:
+      battery_storage: 5
+
+  - ticker: "NVDA"
+    name: "NVIDIA"
+    country: "US"
+    sector: "technology"
+    themes:
+      semiconductor: 5
+      ai_infrastructure: 5
+
+  - ticker: "TSM"
+    name: "TSMC"
+    country: "US"
+    sector: "technology"
+    themes:
+      semiconductor: 5
+
+  - ticker: "ASML"
+    name: "ASML"
+    country: "US"
+    sector: "technology"
+    themes:
+      semiconductor: 5
+
+  - ticker: "AMD"
+    name: "AMD"
+    country: "US"
+    sector: "technology"
+    themes:
+      semiconductor: 4
+      ai_infrastructure: 4
+
+  - ticker: "INTC"
+    name: "Intel"
+    country: "US"
+    sector: "technology"
+    themes:
+      semiconductor: 4
+
+  - ticker: "AVGO"
+    name: "Broadcom"
+    country: "US"
+    sector: "technology"
+    themes:
+      semiconductor: 4
+      ai_infrastructure: 4
+
+  - ticker: "LMT"
+    name: "Lockheed Martin"
+    country: "US"
+    sector: "industrials"
+    themes:
+      defense: 5
+
+  - ticker: "RTX"
+    name: "RTX Corporation"
+    country: "US"
+    sector: "industrials"
+    themes:
+      defense: 5
+
+  - ticker: "NOC"
+    name: "Northrop Grumman"
+    country: "US"
+    sector: "industrials"
+    themes:
+      defense: 5
+
+  - ticker: "GD"
+    name: "General Dynamics"
+    country: "US"
+    sector: "industrials"
+    themes:
+      defense: 5
+
+  - ticker: "BA"
+    name: "Boeing"
+    country: "US"
+    sector: "industrials"
+    themes:
+      defense: 3
+
+  - ticker: "SMCI"
+    name: "Super Micro Computer"
+    country: "US"
+    sector: "technology"
+    themes:
+      ai_infrastructure: 5
+
+  - ticker: "VRT"
+    name: "Vertiv Holdings"
+    country: "US"
+    sector: "industrials"
+    themes:
+      ai_infrastructure: 5
+
+  - ticker: "DELL"
+    name: "Dell Technologies"
+    country: "US"
+    sector: "technology"
+    themes:
+      ai_infrastructure: 3
+
+  - ticker: "MSFT"
+    name: "Microsoft"
+    country: "US"
+    sector: "technology"
+    themes:
+      ai_infrastructure: 3
+
+  - ticker: "GOOGL"
+    name: "Alphabet"
+    country: "US"
+    sector: "technology"
+    themes:
+      ai_infrastructure: 3

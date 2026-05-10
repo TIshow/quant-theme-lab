@@ -1,0 +1,37 @@
+theme: semiconductor
+display_name: "Semiconductor / 半導体"
+description: >
+  Semiconductor design, manufacturing, equipment, materials,
+  memory, logic, analog, and packaging.
+
+benchmark:
+  jp: "1306.T"
+  us: "SOXX"
+  global: "ACWI"
+
+analysis:
+  start_date: "2023-01-01"
+  min_theme_purity: 2
+  top_n_backtest: 5
+
+weights:
+  momentum: 0.25
+  volatility: 0.10
+  drawdown: 0.10
+  liquidity: 0.10
+  theme_purity: 0.20
+  risk_adjusted_return: 0.25
+
+momentum_weights:
+  return_1m: 0.20
+  return_3m: 0.50
+  return_6m: 0.30
+
+risk_adjusted_return_weights:
+  sharpe_6m: 0.40
+  sharpe_12m: 0.40
+  calmar_12m: 0.20
+
+backtest:
+  transaction_cost_bps: 20
+  execution_lag_days: 1

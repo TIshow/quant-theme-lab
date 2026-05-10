@@ -1,0 +1,37 @@
+theme: battery_storage
+display_name: "Battery Storage / 蓄電池"
+description: >
+  Energy storage, BESS, battery materials, grid storage,
+  EV charging, power electronics, and battery recycling.
+
+benchmark:
+  jp: "1306.T"
+  us: "SPY"
+  global: "ACWI"
+
+analysis:
+  start_date: "2023-01-01"
+  min_theme_purity: 2
+  top_n_backtest: 5
+
+weights:
+  momentum: 0.25
+  volatility: 0.10
+  drawdown: 0.10
+  liquidity: 0.10
+  theme_purity: 0.20
+  risk_adjusted_return: 0.25
+
+momentum_weights:
+  return_1m: 0.20
+  return_3m: 0.50
+  return_6m: 0.30
+
+risk_adjusted_return_weights:
+  sharpe_6m: 0.40
+  sharpe_12m: 0.40
+  calmar_12m: 0.20
+
+backtest:
+  transaction_cost_bps: 30
+  execution_lag_days: 1
