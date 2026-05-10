@@ -5,6 +5,7 @@ from src.factors.drawdown import compute_max_drawdown
 from src.factors.liquidity import compute_liquidity
 from src.factors.risk import compute_risk_metrics
 from src.factors.moving_average import compute_moving_average_features
+from src.factors.fundamentals import compute_fundamental_factors
 
 
 def _quality_flag(days: int) -> str:
@@ -23,6 +24,7 @@ def build_factor_table(prices: pd.DataFrame) -> pd.DataFrame:
         for t, g in prices.groupby("Ticker")
     ])
 
+    tickers = prices["Ticker"].unique().tolist()
     tables = [
         history,
         compute_period_returns(prices),
@@ -31,6 +33,7 @@ def build_factor_table(prices: pd.DataFrame) -> pd.DataFrame:
         compute_liquidity(prices),
         compute_risk_metrics(prices),
         compute_moving_average_features(prices),
+        compute_fundamental_factors(tickers),
     ]
 
     result = tables[0]
