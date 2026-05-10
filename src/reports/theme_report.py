@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
@@ -56,7 +57,7 @@ _TEMPLATE = """<!DOCTYPE html>
 <div class="legend">
   <div class="leg-item">
     <div class="leg-name">Final Score</div>
-    <div class="leg-formula">Momentum×0.25 + Risk-Adj×0.25 + Purity×0.20 + Vola×0.10 + DD×0.10 + Liquidity×0.10</div>
+    <div class="leg-formula">Momentum×0.20 + Risk-Adj×0.23 + Fundamentals×0.15 + Purity×0.18 + Vola×0.08 + DD×0.08 + Liquidity×0.08</div>
     <div class="leg-desc">各指標について「ユニバース内で何番目か」をランク付けし 0〜1 に変換したうえで重み付き合計。1.0 = ユニバース内で全指標トップ。</div>
   </div>
   <div class="leg-item">
@@ -90,6 +91,11 @@ _TEMPLATE = """<!DOCTYPE html>
     <div class="leg-desc">テーマへの純度。5=主要事業（売上70%+）、3=明確な露出（20〜40%）。</div>
   </div>
   <div class="leg-item">
+    <div class="leg-name">Fundamentals</div>
+    <div class="leg-formula">ROE×0.25 + ROA×0.15 + 営利率×0.25 + 売上成長×0.20 + FCFマージン×0.15</div>
+    <div class="leg-desc">IRBank（日本株）から取得した財務指標の複合スコア。米国株はユニバース中央値で補完。</div>
+  </div>
+  <div class="leg-item">
     <div class="leg-name">History / Quality</div>
     <div class="leg-formula">取得できた営業日数</div>
     <div class="leg-desc">OK≥252日 / LIMITED_HISTORY 120〜251日 / VERY_SHORT_HISTORY &lt;120日。日数不足だとSharpe_12M等がNaN。</div>
@@ -97,7 +103,7 @@ _TEMPLATE = """<!DOCTYPE html>
 </div>
 <table>
 <thead><tr><th>Rank</th><th>Ticker</th><th>Name</th><th>Country</th><th>Purity</th>
-<th>Final Score</th><th>Momentum</th><th>Risk-Adj</th><th>Liquidity</th><th>Vola</th><th>DD</th>
+<th>Final Score</th><th>Momentum</th><th>Risk-Adj</th><th>Fundamentals</th><th>Liquidity</th><th>Vola</th><th>DD</th>
 <th>History</th><th>Quality</th></tr></thead>
 <tbody>
 {% for r in rows %}
@@ -110,6 +116,7 @@ _TEMPLATE = """<!DOCTYPE html>
 <td>{{ '%.3f'|format(r.get('final_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('momentum_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('risk_adjusted_return_score',0) or 0) }}</td>
+<td>{{ '%.3f'|format(r.get('fundamentals_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('liquidity_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('volatility_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('drawdown_score',0) or 0) }}</td>
@@ -118,6 +125,15 @@ _TEMPLATE = """<!DOCTYPE html>
 </tr>
 {% endfor %}
 </tbody></table>
+
+<h2>Quantamental Analysis</h2>
+<div class="desc" style="font-size:.82em">
+  価格シグナル（モメンタム・リスク調整リターン）と財務指標（ROE・ROA・営利率・売上成長・FCF）を組み合わせたクオンタメンタル分析。
+  <strong>右上（高Fundamentals × 高Momentum）</strong>が最も有望なゾーン。財務データは日本株のみ（IRBank経由）。
+</div>
+{{ quant_scatter }}
+{{ fundamental_bar }}
+{{ fundamental_table }}
 
 <h2>Factor Weights (IC-derived)</h2>
 <div class="desc" style="font-size:.82em">
@@ -171,6 +187,132 @@ def _cluster_chart(clusters: pd.DataFrame) -> str:
     fig = px.strip(clusters, x="cluster", y="Ticker", color="cluster",
                    title="Cluster Assignment", template="plotly_dark")
     fig.update_layout(paper_bgcolor="#1e293b", plot_bgcolor="#0f172a", height=340)
+    return pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
+
+
+def _fmt(v, digits=1, suffix="") -> str:
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        return "—"
+    return f"{v:.{digits}f}{suffix}"
+
+
+def _fundamental_table(ranking_df: pd.DataFrame) -> str:
+    fund_cols = [
+        ("fundamental_roe", "ROE %"),
+        ("fundamental_roa", "ROA %"),
+        ("fundamental_operating_margin", "営利率 %"),
+        ("fundamental_revenue_growth", "売上成長 %"),
+        ("fundamental_free_cf_margin", "FCFマージン %"),
+        ("fundamentals_score", "Fund.Score"),
+    ]
+    rows_html = ""
+    for _, r in ranking_df.iterrows():
+        if not str(r.get("Ticker", "")).endswith(".T"):
+            continue
+        cells = "".join(
+            f"<td>{ _fmt(r.get(col), 2 if col == 'fundamentals_score' else 1) }</td>"
+            for col, _ in fund_cols
+        )
+        rows_html += f"<tr><td><strong>{r['Ticker']}</strong></td><td>{r.get('name','')}</td>{cells}</tr>"
+
+    if not rows_html:
+        return "<p style='color:#94a3b8'>財務データなし（JP銘柄が存在しないか未取得）</p>"
+
+    headers = "".join(f"<th>{label}</th>" for _, label in fund_cols)
+    return (
+        "<table><thead><tr><th>Ticker</th><th>Name</th>" + headers + "</tr></thead>"
+        "<tbody>" + rows_html + "</tbody></table>"
+    )
+
+
+def _fundamental_bar_chart(ranking_df: pd.DataFrame) -> str:
+    jp = ranking_df[ranking_df["Ticker"].str.endswith(".T", na=False)].copy()
+    metrics = {
+        "fundamental_roe": "ROE %",
+        "fundamental_roa": "ROA %",
+        "fundamental_operating_margin": "営利率 %",
+    }
+    available = {k: v for k, v in metrics.items() if k in jp.columns}
+    if jp.empty or not available:
+        return ""
+
+    fig = go.Figure()
+    colors = ["#3b82f6", "#10b981", "#f59e0b"]
+    for (col, label), color in zip(available.items(), colors):
+        fig.add_trace(go.Bar(
+            name=label, x=jp["Ticker"], y=jp[col],
+            marker_color=color, opacity=0.85,
+        ))
+    fig.update_layout(
+        barmode="group", template="plotly_dark",
+        height=360, paper_bgcolor="#1e293b", plot_bgcolor="#0f172a",
+        title="財務指標比較（JP銘柄）",
+        legend=dict(orientation="h", y=1.08),
+        yaxis_title="%",
+    )
+    return pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
+
+
+def _quantamental_scatter(ranking_df: pd.DataFrame) -> str:
+    df = ranking_df.dropna(subset=["fundamentals_score", "momentum_score"]).copy()
+    if df.empty:
+        return "<p style='color:#94a3b8'>散布図データなし</p>"
+
+    mid_f = df["fundamentals_score"].median()
+    mid_m = df["momentum_score"].median()
+
+    colors = []
+    for _, r in df.iterrows():
+        f, m = r["fundamentals_score"], r["momentum_score"]
+        if f >= mid_f and m >= mid_m:
+            colors.append("#4ade80")   # 右上: ideal
+        elif f < mid_f and m >= mid_m:
+            colors.append("#fbbf24")   # 左上: momentum only
+        elif f >= mid_f and m < mid_m:
+            colors.append("#60a5fa")   # 右下: quality trap
+        else:
+            colors.append("#f87171")   # 左下: avoid
+
+    fig = go.Figure()
+    fig.add_shape(type="line", x0=mid_f, x1=mid_f, y0=0, y1=1,
+                  line=dict(color="#475569", dash="dash", width=1))
+    fig.add_shape(type="line", x0=0, x1=1, y0=mid_m, y1=mid_m,
+                  line=dict(color="#475569", dash="dash", width=1))
+
+    fig.add_trace(go.Scatter(
+        x=df["fundamentals_score"], y=df["momentum_score"],
+        mode="markers+text",
+        text=df["Ticker"],
+        textposition="top center",
+        textfont=dict(size=10, color="#e2e8f0"),
+        marker=dict(size=12, color=colors, line=dict(width=1, color="#1e293b")),
+        hovertemplate=(
+            "<b>%{text}</b><br>"
+            "Fundamentals: %{x:.3f}<br>"
+            "Momentum: %{y:.3f}<extra></extra>"
+        ),
+    ))
+
+    fig.add_annotation(x=0.85, y=0.92, xref="paper", yref="paper",
+                       text="★ 理想（高F×高M）", showarrow=False,
+                       font=dict(color="#4ade80", size=11))
+    fig.add_annotation(x=0.15, y=0.92, xref="paper", yref="paper",
+                       text="モメンタム先行", showarrow=False,
+                       font=dict(color="#fbbf24", size=11))
+    fig.add_annotation(x=0.85, y=0.08, xref="paper", yref="paper",
+                       text="財務は強いが株価弱い", showarrow=False,
+                       font=dict(color="#60a5fa", size=11))
+    fig.add_annotation(x=0.15, y=0.08, xref="paper", yref="paper",
+                       text="回避", showarrow=False,
+                       font=dict(color="#f87171", size=11))
+
+    fig.update_layout(
+        template="plotly_dark", height=480,
+        paper_bgcolor="#1e293b", plot_bgcolor="#0f172a",
+        title="Quantamental Quadrant: Fundamentals × Momentum",
+        xaxis=dict(title="Fundamentals Score", range=[0, 1]),
+        yaxis=dict(title="Momentum Score", range=[0, 1]),
+    )
     return pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
 
 
@@ -315,6 +457,9 @@ def generate_theme_html_report(
         n_us=n_us,
         avg_purity=avg_purity,
         rows=ranking_df.to_dict(orient="records"),
+        quant_scatter=_quantamental_scatter(ranking_df),
+        fundamental_bar=_fundamental_bar_chart(ranking_df),
+        fundamental_table=_fundamental_table(ranking_df),
         ic_table=_ic_table(_ic_summary, _ic_weights),
         backtest_chart=_backtest_chart(backtest_df),
         corr_chart=_corr_chart(correlation_df),

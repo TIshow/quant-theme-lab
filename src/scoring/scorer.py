@@ -55,12 +55,26 @@ def compute_scores(
     df["theme_purity_raw"] = df["Ticker"].map(purity_map).fillna(3.0)
     df["theme_purity_score"] = rank_normalize(df["theme_purity_raw"], higher_is_better=True)
 
+    fw = config.get("fundamental_weights", {
+        "roe": 0.25, "roa": 0.15, "operating_margin": 0.25,
+        "revenue_growth": 0.20, "free_cf_margin": 0.15,
+    })
+    raw_fund = (
+        _col(df, "fundamental_roe").fillna(_col(df, "fundamental_roe").median()) * fw.get("roe", 0.25)
+        + _col(df, "fundamental_roa").fillna(_col(df, "fundamental_roa").median()) * fw.get("roa", 0.15)
+        + _col(df, "fundamental_operating_margin").fillna(_col(df, "fundamental_operating_margin").median()) * fw.get("operating_margin", 0.25)
+        + _col(df, "fundamental_revenue_growth").fillna(_col(df, "fundamental_revenue_growth").median()) * fw.get("revenue_growth", 0.20)
+        + _col(df, "fundamental_free_cf_margin").fillna(_col(df, "fundamental_free_cf_margin").median()) * fw.get("free_cf_margin", 0.15)
+    )
+    df["fundamentals_score"] = rank_normalize(raw_fund, higher_is_better=True)
+
     df["final_score"] = (
-        df["momentum_score"] * weights.get("momentum", 0.25)
-        + df["volatility_score"] * weights.get("volatility", 0.10)
-        + df["drawdown_score"] * weights.get("drawdown", 0.10)
-        + df["liquidity_score"] * weights.get("liquidity", 0.10)
-        + df["theme_purity_score"] * weights.get("theme_purity", 0.20)
-        + df["risk_adjusted_return_score"] * weights.get("risk_adjusted_return", 0.25)
+        df["momentum_score"] * weights.get("momentum", 0.20)
+        + df["volatility_score"] * weights.get("volatility", 0.08)
+        + df["drawdown_score"] * weights.get("drawdown", 0.08)
+        + df["liquidity_score"] * weights.get("liquidity", 0.08)
+        + df["theme_purity_score"] * weights.get("theme_purity", 0.18)
+        + df["risk_adjusted_return_score"] * weights.get("risk_adjusted_return", 0.23)
+        + df["fundamentals_score"] * weights.get("fundamentals", 0.15)
     )
     return df
