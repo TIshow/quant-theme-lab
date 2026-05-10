@@ -135,6 +135,13 @@ _TEMPLATE = """<!DOCTYPE html>
 {{ fundamental_bar }}
 {{ fundamental_table }}
 
+<h2>Fundamental Factor Weights (Annual IC-derived)</h2>
+<div class="desc" style="font-size:.82em">
+  各財務ファクターの重みは <strong>年次 ICIR</strong>（年率リターンとの Spearman IC の情報比）から自動計算されます。
+  申告ラグ 90 日 + 12 ヶ月フォワードリターンを使用。データ不足時は等ウェイトにフォールバック。
+</div>
+{{ fund_ic_table }}
+
 <h2>Factor Weights (IC-derived)</h2>
 <div class="desc" style="font-size:.82em">
   各コンポーネントの重みは YAML 固定値ではなく、<strong>ICIR（IC情報比）</strong> から自動計算されます。
@@ -425,6 +432,46 @@ def _ic_table(ic_summary: pd.DataFrame, weights: dict) -> str:
     )
 
 
+def _fundamental_ic_table(fund_ic_summary: pd.DataFrame) -> str:
+    if fund_ic_summary.empty:
+        return "<p style='color:#94a3b8'>No fundamental IC data.</p>"
+
+    header_notes = (
+        "<div style='font-size:.75em;color:#94a3b8;margin-bottom:8px'>"
+        "<strong>Mean IC</strong>: 財務指標と翌年リターンの Spearman 相関の平均。"
+        "　<strong>ICIR</strong>: IC の安定性（mean/std）。0.15超で有効シグナル（年次データは基準が低め）。"
+        "　<strong>Weight</strong>: ICIR 絶対値に比例して自動決定された重み。"
+        "</div>"
+    )
+
+    rows_html = ""
+    for _, r in fund_ic_summary.iterrows():
+        metric = r["metric"]
+        usable = r.get("usable", False)
+        badge = "<span style='color:#4ade80'>✔ usable</span>" if usable else "<span style='color:#f87171'>✘ noise</span>"
+        icir_val = f"{r['icir']:.3f}" if pd.notna(r.get("icir")) else "N/A"
+        mean_ic_val = f"{r['mean_ic']:.3f}" if pd.notna(r.get("mean_ic")) else "N/A"
+        abs_icir_val = f"{r['abs_icir']:.3f}" if pd.notna(r.get("abs_icir")) else "N/A"
+        rows_html += (
+            f"<tr>"
+            f"<td>{metric}</td>"
+            f"<td>{mean_ic_val}</td>"
+            f"<td>{icir_val}</td>"
+            f"<td>{abs_icir_val}</td>"
+            f"<td>{r.get('n_periods', 0)}</td>"
+            f"<td>{badge}</td>"
+            f"</tr>"
+        )
+
+    return (
+        header_notes
+        + "<table><thead><tr>"
+        "<th>Metric</th><th>Mean IC</th><th>ICIR</th><th>|ICIR|</th>"
+        "<th>Periods</th><th>Signal</th>"
+        "</tr></thead><tbody>" + rows_html + "</tbody></table>"
+    )
+
+
 def generate_theme_html_report(
     theme: str,
     config: dict,
@@ -436,6 +483,7 @@ def generate_theme_html_report(
     output_path: str,
     ic_summary: pd.DataFrame | None = None,
     ic_weights: dict | None = None,
+    fund_ic_summary: pd.DataFrame | None = None,
 ) -> None:
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -445,6 +493,7 @@ def generate_theme_html_report(
 
     _ic_summary = ic_summary if ic_summary is not None else pd.DataFrame()
     _ic_weights = ic_weights or {}
+    _fund_ic_summary = fund_ic_summary if fund_ic_summary is not None else pd.DataFrame()
 
     html = Template(_TEMPLATE).render(
         css=_CSS,
@@ -460,6 +509,7 @@ def generate_theme_html_report(
         quant_scatter=_quantamental_scatter(ranking_df),
         fundamental_bar=_fundamental_bar_chart(ranking_df),
         fundamental_table=_fundamental_table(ranking_df),
+        fund_ic_table=_fundamental_ic_table(_fund_ic_summary),
         ic_table=_ic_table(_ic_summary, _ic_weights),
         backtest_chart=_backtest_chart(backtest_df),
         corr_chart=_corr_chart(correlation_df),

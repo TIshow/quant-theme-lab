@@ -10,15 +10,19 @@ import argparse
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.config.loader import load_theme_config, get_theme_universe, get_weights, get_benchmark
 from src.data.price_loader import download_price_data
 from src.data.storage import save_parquet, save_csv
 from src.factors.factor_table import build_factor_table
+from src.factors.fundamentals import fetch_all_fundamentals
 from src.scoring.scorer import compute_scores
 from src.scoring.ranking import rank_stocks
 from src.scoring.ic_weighter import compute_ic_weights
+from src.scoring.fundamental_ic import compute_fundamental_ic_weights
 from src.analytics.correlation import compute_correlation_matrix
 from src.analytics.clustering import compute_clusters
 from src.backtest.simple_backtest import run_monthly_momentum_top_n_backtest
@@ -49,11 +53,24 @@ def main(theme: str) -> None:
 
     theme_prices = prices[prices["Ticker"].isin(tickers)].copy()
 
-    factor_df = build_factor_table(theme_prices)
+    factor_df = build_factor_table(theme_prices, theme=theme, config=config)
     save_parquet(factor_df, f"data/processed/factors/{theme}_factors.parquet")
 
     ic_weights, ic_summary = compute_ic_weights(theme_prices, weights)
     save_csv(ic_summary, f"data/processed/ic_weights/{theme}_ic_weights.csv")
+
+    # Fundamental IC weights (annual)
+    fund_yaml_weights = config.get("fundamental_weights", {})
+    if fund_yaml_weights:
+        fundamentals_data = fetch_all_fundamentals(tickers, theme=theme)
+        fund_ic_weights, fund_ic_summary = compute_fundamental_ic_weights(
+            theme_prices, fundamentals_data, fund_yaml_weights
+        )
+        save_csv(fund_ic_summary, f"data/processed/ic_weights/{theme}_fundamental_ic.csv")
+        # Inject IC-derived weights back into config for scorer
+        config = {**config, "fundamental_weights": fund_ic_weights}
+    else:
+        fund_ic_summary = pd.DataFrame()
 
     scores = compute_scores(factor_df, universe_df, ic_weights, config)
     ranking = rank_stocks(scores, universe_df)
@@ -86,6 +103,7 @@ def main(theme: str) -> None:
         output_path=f"data/reports/themes/{theme}_report.html",
         ic_summary=ic_summary,
         ic_weights=ic_weights,
+        fund_ic_summary=fund_ic_summary,
     )
 
     logger.info(f"=== Done: data/reports/themes/{theme}_report.html ===")

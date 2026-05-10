@@ -55,18 +55,17 @@ def compute_scores(
     df["theme_purity_raw"] = df["Ticker"].map(purity_map).fillna(3.0)
     df["theme_purity_score"] = rank_normalize(df["theme_purity_raw"], higher_is_better=True)
 
-    fw = config.get("fundamental_weights", {
-        "roe": 0.25, "roa": 0.15, "operating_margin": 0.25,
-        "revenue_growth": 0.20, "free_cf_margin": 0.15,
-    })
-    raw_fund = (
-        _col(df, "fundamental_roe").fillna(_col(df, "fundamental_roe").median()) * fw.get("roe", 0.25)
-        + _col(df, "fundamental_roa").fillna(_col(df, "fundamental_roa").median()) * fw.get("roa", 0.15)
-        + _col(df, "fundamental_operating_margin").fillna(_col(df, "fundamental_operating_margin").median()) * fw.get("operating_margin", 0.25)
-        + _col(df, "fundamental_revenue_growth").fillna(_col(df, "fundamental_revenue_growth").median()) * fw.get("revenue_growth", 0.20)
-        + _col(df, "fundamental_free_cf_margin").fillna(_col(df, "fundamental_free_cf_margin").median()) * fw.get("free_cf_margin", 0.15)
-    )
-    df["fundamentals_score"] = rank_normalize(raw_fund, higher_is_better=True)
+    fw = config.get("fundamental_weights", {})
+    if fw:
+        raw_fund = sum(
+            _col(df, f"fundamental_{metric}").fillna(
+                _col(df, f"fundamental_{metric}").median()
+            ) * weight
+            for metric, weight in fw.items()
+        )
+        df["fundamentals_score"] = rank_normalize(raw_fund, higher_is_better=True)
+    else:
+        df["fundamentals_score"] = pd.Series(0.5, index=df.index)
 
     df["final_score"] = (
         df["momentum_score"] * weights.get("momentum", 0.20)

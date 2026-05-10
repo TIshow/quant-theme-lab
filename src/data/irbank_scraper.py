@@ -69,6 +69,8 @@ _TABLE_COLUMNS = {
         "ROE":    "roe",
         "ROA":    "roa",
         "営利率":  "operating_margin",
+        "原価率":  "cost_ratio",
+        "販管費率": "sga_ratio",
     },
     1: {  # BS
         "総資産":     "total_assets",
@@ -77,6 +79,7 @@ _TABLE_COLUMNS = {
         "利益剰余金":  "retained_earnings",
         "有利子負債":  "interest_bearing_debt",
         "BPS":       "bps",
+        "株主資本":   "shareholders_equity",
     },
     2: {  # CF
         "営業CF":      "operating_cf",
@@ -140,6 +143,9 @@ def _add_derived(df: pd.DataFrame) -> pd.DataFrame:
 
     if "operating_cf" in df.columns and "capex" in df.columns:
         df["fcf_check"] = df["operating_cf"] + df["capex"]
+
+    if "free_cf" in df.columns and "revenue" in df.columns:
+        df["free_cf_margin"] = df["free_cf"] / df["revenue"].replace(0, np.nan) * 100
 
     return df
 

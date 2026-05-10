@@ -18,7 +18,7 @@ def _quality_flag(days: int) -> str:
     return "NO_DATA"
 
 
-def build_factor_table(prices: pd.DataFrame) -> pd.DataFrame:
+def build_factor_table(prices: pd.DataFrame, theme: str | None = None, config: dict | None = None) -> pd.DataFrame:
     history = pd.DataFrame([
         {"Ticker": t, "available_history_days": len(g), "data_quality_flag": _quality_flag(len(g))}
         for t, g in prices.groupby("Ticker")
@@ -33,7 +33,7 @@ def build_factor_table(prices: pd.DataFrame) -> pd.DataFrame:
         compute_liquidity(prices),
         compute_risk_metrics(prices),
         compute_moving_average_features(prices),
-        compute_fundamental_factors(tickers),
+        compute_fundamental_factors(tickers, config=config, theme=theme),
     ]
 
     result = tables[0]

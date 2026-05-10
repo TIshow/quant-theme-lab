@@ -34,11 +34,13 @@ risk_adjusted_return_weights:
   calmar_12m: 0.20
 
 fundamental_weights:
-  roe: 0.25
-  roa: 0.15
-  operating_margin: 0.25
-  revenue_growth: 0.20
-  free_cf_margin: 0.15
+  roe: 0.18
+  roa: 0.12
+  operating_margin: 0.20
+  revenue_growth: 0.15
+  free_cf_margin: 0.12
+  capex_ratio: 0.12
+  gross_margin: 0.11
 
 backtest:
   transaction_cost_bps: 30
