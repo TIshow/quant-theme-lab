@@ -18,6 +18,7 @@ from src.data.storage import save_parquet, save_csv
 from src.factors.factor_table import build_factor_table
 from src.scoring.scorer import compute_scores
 from src.scoring.ranking import rank_stocks
+from src.scoring.ic_weighter import compute_ic_weights
 from src.analytics.correlation import compute_correlation_matrix
 from src.analytics.clustering import compute_clusters
 from src.backtest.simple_backtest import run_monthly_momentum_top_n_backtest
@@ -51,7 +52,10 @@ def main(theme: str) -> None:
     factor_df = build_factor_table(theme_prices)
     save_parquet(factor_df, f"data/processed/factors/{theme}_factors.parquet")
 
-    scores = compute_scores(factor_df, universe_df, weights, config)
+    ic_weights, ic_summary = compute_ic_weights(theme_prices, weights)
+    save_csv(ic_summary, f"data/processed/ic_weights/{theme}_ic_weights.csv")
+
+    scores = compute_scores(factor_df, universe_df, ic_weights, config)
     ranking = rank_stocks(scores, universe_df)
     save_csv(ranking, f"data/processed/rankings/{theme}_ranking.csv")
 
@@ -80,6 +84,8 @@ def main(theme: str) -> None:
         clusters_df=clusters,
         backtest_df=backtest,
         output_path=f"data/reports/themes/{theme}_report.html",
+        ic_summary=ic_summary,
+        ic_weights=ic_weights,
     )
 
     logger.info(f"=== Done: data/reports/themes/{theme}_report.html ===")

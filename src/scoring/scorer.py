@@ -42,7 +42,7 @@ def compute_scores(
 
     df["volatility_score"] = rank_normalize(_col(df, "annualized_volatility"), higher_is_better=False)
     df["drawdown_score"] = rank_normalize(_col(df, "max_drawdown_12m"), higher_is_better=False)
-    df["liquidity_score"] = rank_normalize(_col(df, "avg_traded_value_3m"), higher_is_better=True)
+    df["liquidity_score"] = rank_normalize(_col(df, "avg_volume_3m"), higher_is_better=True)
 
     raw_rar = (
         _col(df, "sharpe_6m").fillna(_col(df, "sharpe_6m").median()) * rw.get("sharpe_6m", 0.4)

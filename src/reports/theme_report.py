@@ -71,8 +71,8 @@ _TEMPLATE = """<!DOCTYPE html>
   </div>
   <div class="leg-item">
     <div class="leg-name">Liquidity</div>
-    <div class="leg-formula">avg(Close × Volume) — 直近3M</div>
-    <div class="leg-desc">平均売買代金（3ヶ月）。流動性が高いほどスコア高。</div>
+    <div class="leg-formula">avg(Volume) — 直近3M</div>
+    <div class="leg-desc">平均出来高（3ヶ月）。株価に依存しない純粋な取引活発度。高いほどスコア高。</div>
   </div>
   <div class="leg-item">
     <div class="leg-name">Vola</div>
@@ -118,6 +118,13 @@ _TEMPLATE = """<!DOCTYPE html>
 </tr>
 {% endfor %}
 </tbody></table>
+
+<h2>Factor Weights (IC-derived)</h2>
+<div class="desc" style="font-size:.82em">
+  各コンポーネントの重みは YAML 固定値ではなく、<strong>ICIR（IC情報比）</strong> から自動計算されます。
+  ICIR = mean(IC) / std(IC)。ICIR &gt; 0.3 が実用的なシグナルの目安。theme_purity のみ YAML 固定。
+</div>
+{{ ic_table }}
 
 <h2>Backtest (monthly momentum top-N, with transaction costs)</h2>
 <div class="chart">{{ backtest_chart }}</div>
@@ -167,6 +174,115 @@ def _cluster_chart(clusters: pd.DataFrame) -> str:
     return pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
 
 
+def _ic_interpretation(r: dict) -> str:
+    """One-line plain-language reading of a single factor's IC result."""
+    c = r.get("component", "")
+    icir = r.get("icir", float("nan"))
+    mean_ic = r.get("mean_ic", float("nan"))
+
+    if pd.isna(icir):
+        return "データ不足のため判定不可"
+
+    if c == "momentum":
+        if abs(icir) < 0.1:
+            return "過去リターンは翌月をほぼ予測しない（ランダム）"
+        return "モメンタムに予測力あり" if icir > 0 else "逆張り的（上昇後に反落しやすい）"
+
+    if c == "volatility":
+        if icir < -0.1:
+            return "高ボラ銘柄の方が翌月リターンが高い傾向（平均回帰・リバウンド効果）"
+        if icir > 0.1:
+            return "低ボラ銘柄が翌月も優位（安定銘柄に予測力）"
+        return "ボラティリティに翌月予測力なし"
+
+    if c == "drawdown":
+        if icir > 0.1:
+            return "ドローダウンが小さい銘柄が翌月も優位"
+        if icir < -0.1:
+            return "大きく下げた銘柄がリバウンドしやすい傾向"
+        return "ドローダウンに翌月予測力なし"
+
+    if c == "liquidity":
+        if icir > 0.1:
+            return "出来高が多い銘柄が翌月優位（流動性プレミアム）"
+        if icir < -0.1:
+            return "出来高が少ない銘柄が翌月優位（小型株効果）"
+        return "出来高に翌月予測力なし"
+
+    if c == "risk_adjusted_return":
+        if icir > 0.2:
+            return "Sharpeが高い銘柄が翌月もアウトパフォームしやすい"
+        return "リスク調整リターンの予測力は限定的"
+
+    return ""
+
+
+def _ic_table(ic_summary: pd.DataFrame, weights: dict) -> str:
+    if ic_summary.empty:
+        return "<p style='color:#94a3b8'>No IC data.</p>"
+
+    # Column header explanations
+    header_notes = (
+        "<div style='font-size:.75em;color:#94a3b8;margin-bottom:8px'>"
+        "<strong>Mean IC</strong>: 毎月の「ファクター→翌月リターン」Spearman相関の平均。"
+        "　<strong>ICIR</strong>: その安定性（mean/std）。±0.3超で実用シグナル。"
+        "　<strong>Weight</strong>: ICIR絶対値に比例して自動決定された重み。"
+        "</div>"
+    )
+
+    rows_html = ""
+    for _, r in ic_summary.iterrows():
+        c = r["component"]
+        w = weights.get(c, 0.0)
+        usable = r.get("usable", False)
+        badge = "<span style='color:#4ade80'>✔ usable</span>" if usable else "<span style='color:#f87171'>✘ noise</span>"
+        icir_val = f"{r['icir']:.3f}" if pd.notna(r.get("icir")) else "N/A"
+        mean_ic_val = f"{r['mean_ic']:.3f}" if pd.notna(r.get("mean_ic")) else "N/A"
+        interp = _ic_interpretation(dict(r))
+        rows_html += (
+            f"<tr>"
+            f"<td>{c}</td>"
+            f"<td style='color:#94a3b8'>{r['factor']}</td>"
+            f"<td>{mean_ic_val}</td>"
+            f"<td>{icir_val}</td>"
+            f"<td>{r.get('n_periods', 0)}</td>"
+            f"<td><strong style='color:#7dd3fc'>{w:.3f}</strong></td>"
+            f"<td>{badge}</td>"
+            f"<td style='font-size:.78em;color:#94a3b8'>{interp}</td>"
+            f"</tr>"
+        )
+
+    # Overall interpretation
+    all_noise = ic_summary["usable"].sum() == 0
+    if all_noise:
+        overall = (
+            "<div style='margin-top:12px;padding:10px 14px;background:#1e293b;"
+            "border-left:3px solid #f87171;border-radius:6px;font-size:.8em'>"
+            "<strong style='color:#f87171'>全ファクターがノイズ水準</strong>："
+            "価格データだけではこのセクターの翌月リターンを予測できない。"
+            "補助金・受注・政策など<strong>価格以外の情報</strong>がリターンを支配している可能性が高い。"
+            "財務データ・テーマKPIの追加が有効。"
+            "</div>"
+        )
+    else:
+        usable_names = ic_summary[ic_summary["usable"]]["component"].tolist()
+        overall = (
+            f"<div style='margin-top:12px;padding:10px 14px;background:#1e293b;"
+            f"border-left:3px solid #4ade80;border-radius:6px;font-size:.8em'>"
+            f"有効シグナル: <strong style='color:#4ade80'>{', '.join(usable_names)}</strong>"
+            f"</div>"
+        )
+
+    return (
+        header_notes
+        + "<table><thead><tr>"
+        "<th>Component</th><th>Factor</th><th>Mean IC</th><th>ICIR</th>"
+        "<th>Periods</th><th>Weight</th><th>Signal</th><th>読み方</th>"
+        "</tr></thead><tbody>" + rows_html + "</tbody></table>"
+        + overall
+    )
+
+
 def generate_theme_html_report(
     theme: str,
     config: dict,
@@ -176,12 +292,17 @@ def generate_theme_html_report(
     clusters_df: pd.DataFrame,
     backtest_df: pd.DataFrame,
     output_path: str,
+    ic_summary: pd.DataFrame | None = None,
+    ic_weights: dict | None = None,
 ) -> None:
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     n_jp = int((universe_df["country"] == "JP").sum()) if "country" in universe_df.columns else 0
     n_us = int((universe_df["country"] == "US").sum()) if "country" in universe_df.columns else 0
     avg_purity = f"{universe_df['theme_purity'].mean():.1f}" if "theme_purity" in universe_df.columns else "N/A"
+
+    _ic_summary = ic_summary if ic_summary is not None else pd.DataFrame()
+    _ic_weights = ic_weights or {}
 
     html = Template(_TEMPLATE).render(
         css=_CSS,
@@ -194,6 +315,7 @@ def generate_theme_html_report(
         n_us=n_us,
         avg_purity=avg_purity,
         rows=ranking_df.to_dict(orient="records"),
+        ic_table=_ic_table(_ic_summary, _ic_weights),
         backtest_chart=_backtest_chart(backtest_df),
         corr_chart=_corr_chart(correlation_df),
         cluster_chart=_cluster_chart(clusters_df),
