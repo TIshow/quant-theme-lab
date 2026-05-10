@@ -46,8 +46,8 @@ pnpm install
 ### Layer 1: テーマ横断比較
 
 ```bash
-python run_universe.py
-python run_universe.py --themes battery_storage semiconductor defense ai_infrastructure
+pnpm run universe
+pnpm run universe --themes battery_storage semiconductor defense ai_infrastructure
 ```
 
 出力: `data/reports/universe/theme_comparison_report.html`
@@ -55,10 +55,10 @@ python run_universe.py --themes battery_storage semiconductor defense ai_infrast
 ### Layer 2: テーマ内分析
 
 ```bash
-python run_pipeline.py --theme battery_storage
-python run_pipeline.py --theme semiconductor
-python run_pipeline.py --theme defense
-python run_pipeline.py --theme ai_infrastructure
+pnpm run pipeline --theme battery_storage
+pnpm run pipeline --theme semiconductor
+pnpm run pipeline --theme defense
+pnpm run pipeline --theme ai_infrastructure
 ```
 
 出力:
@@ -75,12 +75,12 @@ data/reports/themes/battery_storage_report.html
 ### Layer 3: 個別銘柄分析
 
 ```bash
-# テーマ内での位置づけ付き
-python analyze_stock.py --theme battery_storage --ticker 485A.T
-python analyze_stock.py --theme semiconductor --ticker NVDA
+# テーマ内での位置づけ付き（ランキングでの相対位置も表示）
+pnpm run analyze --theme battery_storage --ticker 485A.T
+pnpm run analyze --theme semiconductor --ticker NVDA
 
 # スタンドアロン（テーマ指定なし）
-python analyze_stock.py --ticker TSLA
+pnpm run analyze --ticker TSLA
 ```
 
 出力:

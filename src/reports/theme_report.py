@@ -29,6 +29,11 @@ tr:hover{background:#1e293b}
 .card{background:#1e293b;border-radius:8px;padding:14px;border:1px solid #334155}
 .card .lbl{font-size:.74em;color:#94a3b8}.card .val{font-size:1.3em;color:#7dd3fc;font-weight:700}
 .disc{background:#1e293b;border:1px solid #374151;border-radius:8px;padding:14px;margin-top:28px;font-size:.78em;color:#6b7280}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin:14px 0 20px}
+.leg-item{background:#1e293b;border-radius:6px;padding:10px 14px;border-left:3px solid #3b82f6}
+.leg-item .leg-name{font-size:.8em;font-weight:700;color:#93c5fd;margin-bottom:4px}
+.leg-item .leg-formula{font-size:.74em;color:#7dd3fc;font-family:monospace;margin-bottom:3px}
+.leg-item .leg-desc{font-size:.72em;color:#94a3b8}
 """
 
 _TEMPLATE = """<!DOCTYPE html>
@@ -48,9 +53,51 @@ _TEMPLATE = """<!DOCTYPE html>
 </div>
 
 <h2>Ranking</h2>
+<div class="legend">
+  <div class="leg-item">
+    <div class="leg-name">Final Score</div>
+    <div class="leg-formula">Momentum×0.25 + Risk-Adj×0.25 + Purity×0.20 + Vola×0.10 + DD×0.10 + Liquidity×0.10</div>
+    <div class="leg-desc">各指標について「ユニバース内で何番目か」をランク付けし 0〜1 に変換したうえで重み付き合計。1.0 = ユニバース内で全指標トップ。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">Momentum</div>
+    <div class="leg-formula">Return_1M×0.2 + Return_3M×0.5 + Return_6M×0.3</div>
+    <div class="leg-desc">価格モメンタムの複合スコア。3ヶ月リターンを最重視。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">Risk-Adj</div>
+    <div class="leg-formula">Sharpe_6M×0.4 + Sharpe_12M×0.4 + Calmar_12M×0.2</div>
+    <div class="leg-desc">リスク調整後リターン。Sharpe = 超過リターン / 標準偏差（年率）、Calmar = 年率リターン / 最大DD。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">Liquidity</div>
+    <div class="leg-formula">avg(Close × Volume) — 直近3M</div>
+    <div class="leg-desc">平均売買代金（3ヶ月）。流動性が高いほどスコア高。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">Vola</div>
+    <div class="leg-formula">std(日次リターン) × √252</div>
+    <div class="leg-desc">年率ボラティリティ。低いほどスコア高（安定＝良）。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">DD</div>
+    <div class="leg-formula">min((終値 − 直近高値) / 直近高値)</div>
+    <div class="leg-desc">最大ドローダウン。下落幅が小さいほどスコア高。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">Purity</div>
+    <div class="leg-formula">1〜5（手動設定）</div>
+    <div class="leg-desc">テーマへの純度。5=主要事業（売上70%+）、3=明確な露出（20〜40%）。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">History / Quality</div>
+    <div class="leg-formula">取得できた営業日数</div>
+    <div class="leg-desc">OK≥252日 / LIMITED_HISTORY 120〜251日 / VERY_SHORT_HISTORY &lt;120日。日数不足だとSharpe_12M等がNaN。</div>
+  </div>
+</div>
 <table>
 <thead><tr><th>Rank</th><th>Ticker</th><th>Name</th><th>Country</th><th>Purity</th>
-<th>Final Score</th><th>Momentum</th><th>Risk-Adj</th><th>Liquidity</th><th>Vol</th><th>DD</th>
+<th>Final Score</th><th>Momentum</th><th>Risk-Adj</th><th>Liquidity</th><th>Vola</th><th>DD</th>
 <th>History</th><th>Quality</th></tr></thead>
 <tbody>
 {% for r in rows %}
