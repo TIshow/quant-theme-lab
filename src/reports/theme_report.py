@@ -440,7 +440,7 @@ def _fundamental_ic_table(fund_ic_summary: pd.DataFrame) -> str:
         "<div style='font-size:.75em;color:#94a3b8;margin-bottom:8px'>"
         "<strong>Mean IC</strong>: 財務指標と翌年リターンの Spearman 相関の平均。"
         "　<strong>ICIR</strong>: IC の安定性（mean/std）。0.15超で有効シグナル（年次データは基準が低め）。"
-        "　<strong>Weight</strong>: ICIR 絶対値に比例して自動決定された重み。"
+        "　<strong>方向性</strong>: IC が負 = 低い方が翌年リターン高（逆張り）。スコアリングに自動反映済み。"
         "</div>"
     )
 
@@ -451,14 +451,15 @@ def _fundamental_ic_table(fund_ic_summary: pd.DataFrame) -> str:
         badge = "<span style='color:#4ade80'>✔ usable</span>" if usable else "<span style='color:#f87171'>✘ noise</span>"
         icir_val = f"{r['icir']:.3f}" if pd.notna(r.get("icir")) else "N/A"
         mean_ic_val = f"{r['mean_ic']:.3f}" if pd.notna(r.get("mean_ic")) else "N/A"
-        abs_icir_val = f"{r['abs_icir']:.3f}" if pd.notna(r.get("abs_icir")) else "N/A"
+        direction = r.get("direction", "—")
+        dir_color = "#f87171" if "低" in str(direction) else "#4ade80"
         rows_html += (
             f"<tr>"
             f"<td>{metric}</td>"
             f"<td>{mean_ic_val}</td>"
             f"<td>{icir_val}</td>"
-            f"<td>{abs_icir_val}</td>"
             f"<td>{r.get('n_periods', 0)}</td>"
+            f"<td style='color:{dir_color}'>{direction}</td>"
             f"<td>{badge}</td>"
             f"</tr>"
         )
@@ -466,8 +467,8 @@ def _fundamental_ic_table(fund_ic_summary: pd.DataFrame) -> str:
     return (
         header_notes
         + "<table><thead><tr>"
-        "<th>Metric</th><th>Mean IC</th><th>ICIR</th><th>|ICIR|</th>"
-        "<th>Periods</th><th>Signal</th>"
+        "<th>Metric</th><th>Mean IC</th><th>ICIR</th><th>Periods</th>"
+        "<th>方向性</th><th>Signal</th>"
         "</tr></thead><tbody>" + rows_html + "</tbody></table>"
     )
 

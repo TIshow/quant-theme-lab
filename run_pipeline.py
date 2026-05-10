@@ -60,14 +60,22 @@ def main(theme: str) -> None:
     save_csv(ic_summary, f"data/processed/ic_weights/{theme}_ic_weights.csv")
 
     # Fundamental IC weights (annual)
+    # Requires long price history (10yr) — separate from theme start_date
     fund_yaml_weights = config.get("fundamental_weights", {})
     if fund_yaml_weights:
         fundamentals_data = fetch_all_fundamentals(tickers, theme=theme)
+        jp_tickers = [t for t in tickers if t.endswith(".T")]
+        fund_price_cache = Path(f"data/processed/prices/{theme}_fund_ic_prices.parquet")
+        if fund_price_cache.exists():
+            extended_prices = pd.read_parquet(fund_price_cache)
+            logger.info("Loaded extended prices from cache for fundamental IC")
+        else:
+            extended_prices = download_price_data(jp_tickers, start_date="2010-01-01")
+            save_parquet(extended_prices, str(fund_price_cache))
         fund_ic_weights, fund_ic_summary = compute_fundamental_ic_weights(
-            theme_prices, fundamentals_data, fund_yaml_weights
+            extended_prices, fundamentals_data, fund_yaml_weights
         )
         save_csv(fund_ic_summary, f"data/processed/ic_weights/{theme}_fundamental_ic.csv")
-        # Inject IC-derived weights back into config for scorer
         config = {**config, "fundamental_weights": fund_ic_weights}
     else:
         fund_ic_summary = pd.DataFrame()

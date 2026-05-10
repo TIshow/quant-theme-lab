@@ -131,7 +131,10 @@ def compute_fundamental_ic_weights(
 
         abs_icir = abs(icir_val) if not np.isnan(icir_val) else 0.0
         effective = abs_icir if n >= min_periods else 0.0
-        icir_map[metric] = effective
+        # Sign: negative IC → lower metric value is better → use negative weight
+        # so that rank_normalize(composite, higher_is_better=True) works correctly
+        sign = float(np.sign(icir_val)) if not np.isnan(icir_val) and icir_val != 0 else 1.0
+        icir_map[metric] = (effective, sign)
 
         rows.append({
             "metric": metric,
@@ -139,18 +142,22 @@ def compute_fundamental_ic_weights(
             "icir": round(icir_val, 4) if not np.isnan(icir_val) else np.nan,
             "abs_icir": round(abs_icir, 4),
             "n_periods": n,
-            "usable": effective > 0.15,  # lower threshold for annual data
+            "direction": "低いほど良い" if sign < 0 else "高いほど良い",
+            "usable": effective > 0.15,
         })
 
     ic_summary = pd.DataFrame(rows).sort_values("abs_icir", ascending=False)
 
-    total = sum(icir_map.values())
+    total = sum(v for v, _ in icir_map.values())
     if total == 0:
         logger.warning("All fundamental ICIRs zero — equal weights applied")
         n = len(metric_names)
         weights = {m: 1.0 / n for m in metric_names}
     else:
-        weights = {m: v / total for m, v in icir_map.items()}
+        # Signed weights: negative IC metric gets negative weight
+        # composite = Σ(metric × signed_weight); rank_normalize(higher=True) then
+        # naturally ranks stocks with IC-aligned values higher
+        weights = {m: (abs_icir / total) * sign for m, (abs_icir, sign) in icir_map.items()}
 
-    logger.info("Fundamental IC weights: " + ", ".join(f"{k}={v:.3f}" for k, v in weights.items()))
+    logger.info("Fundamental IC weights (signed): " + ", ".join(f"{k}={v:+.3f}" for k, v in weights.items()))
     return weights, ic_summary
