@@ -7,7 +7,8 @@ Algorithm per metric:
      - forward return = price(filing + 365d) / price(filing) - 1
   2. Compute Spearman IC at each fiscal year (cross-sectional)
   3. ICIR = mean(IC) / std(IC)
-  4. Weight ∝ abs(ICIR); fallback to equal weights if n_periods < min_periods
+  4. Bootstrap 95% CI on ICIR — flag as low_sample when n_tickers/year < 20
+  5. Weight ∝ abs(ICIR); fallback to equal weights if n_periods < min_periods
 """
 import numpy as np
 import pandas as pd
@@ -16,6 +17,8 @@ from scipy.stats import spearmanr
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+_LOW_SAMPLE_THRESHOLD = 20  # tickers/year below which ICIR CI is wide
 
 
 def _get_price_nearest(price_series: pd.Series, date: pd.Timestamp) -> float | None:
@@ -78,16 +81,22 @@ def _build_panel(
     return pd.DataFrame(records)
 
 
-def _ic_series_from_panel(panel: pd.DataFrame) -> pd.Series:
-    """Cross-sectional Spearman IC per fiscal year."""
+def _ic_series_from_panel(panel: pd.DataFrame) -> tuple[pd.Series, float]:
+    """
+    Cross-sectional Spearman IC per fiscal year.
+    Returns (ic_series, avg_tickers_per_year).
+    """
     ic_values = {}
+    ticker_counts = []
     for fy, group in panel.groupby("fiscal_year"):
         if len(group) < 5:
             continue
+        ticker_counts.append(len(group))
         corr, _ = spearmanr(group["metric_value"], group["forward_return"])
         if not np.isnan(corr):
             ic_values[fy] = float(corr)
-    return pd.Series(ic_values)
+    avg_n = float(np.mean(ticker_counts)) if ticker_counts else 0.0
+    return pd.Series(ic_values), avg_n
 
 
 def _icir(ic_series: pd.Series) -> float:
@@ -95,6 +104,31 @@ def _icir(ic_series: pd.Series) -> float:
     if len(clean) < 3 or clean.std() == 0:
         return np.nan
     return float(clean.mean() / clean.std())
+
+
+def _bootstrap_icir_ci(
+    ic_series: pd.Series,
+    n_boot: int = 1000,
+    ci: float = 0.95,
+) -> tuple[float, float]:
+    """
+    Bootstrap percentile confidence interval for ICIR.
+    Wide CI (crossing zero) indicates the signal may be noise.
+    """
+    clean = ic_series.dropna().values
+    if len(clean) < 3:
+        return np.nan, np.nan
+    rng = np.random.default_rng(42)
+    boot_icirs = []
+    for _ in range(n_boot):
+        sample = rng.choice(clean, size=len(clean), replace=True)
+        s = sample.std()
+        if s > 0:
+            boot_icirs.append(float(sample.mean() / s))
+    if len(boot_icirs) < 10:
+        return np.nan, np.nan
+    alpha = (1 - ci) / 2
+    return float(np.quantile(boot_icirs, alpha)), float(np.quantile(boot_icirs, 1 - alpha))
 
 
 def compute_fundamental_ic_weights(
@@ -111,37 +145,48 @@ def compute_fundamental_ic_weights(
 
     Returns:
         weights:    {metric_name: weight}  (values sum to 1.0)
-        ic_summary: DataFrame for reporting
+        ic_summary: DataFrame for reporting (includes bootstrap CI and low_sample flag)
     """
     metric_names = list(yaml_weights.keys())
-    icir_map: dict[str, float] = {}
+    icir_map: dict[str, tuple[float, float]] = {}
     rows = []
 
     for metric in metric_names:
         logger.info(f"Fundamental IC: {metric}")
         panel = _build_panel(prices, fundamentals_data, f"fundamental_{metric}")
         if panel.empty:
-            # Try without prefix (KPI columns added by theme plugin)
             panel = _build_panel(prices, fundamentals_data, metric)
 
-        ic_s = _ic_series_from_panel(panel)
+        ic_s, avg_tickers = _ic_series_from_panel(panel)
         icir_val = _icir(ic_s)
         mean_ic = float(ic_s.mean()) if not ic_s.empty else np.nan
         n = len(ic_s.dropna())
 
+        ci_lo, ci_hi = _bootstrap_icir_ci(ic_s)
+        # Low-sample: avg tickers per year below threshold → CI is wide, interpret cautiously
+        low_sample = avg_tickers < _LOW_SAMPLE_THRESHOLD
+
         abs_icir = abs(icir_val) if not np.isnan(icir_val) else 0.0
         effective = abs_icir if n >= min_periods else 0.0
-        # Sign: negative IC → lower metric value is better → use negative weight
-        # so that rank_normalize(composite, higher_is_better=True) works correctly
         sign = float(np.sign(icir_val)) if not np.isnan(icir_val) and icir_val != 0 else 1.0
         icir_map[metric] = (effective, sign)
+
+        # CI crosses zero → signal may be noise regardless of point estimate
+        ci_crosses_zero = (
+            pd.notna(ci_lo) and pd.notna(ci_hi) and ci_lo < 0 < ci_hi
+        )
 
         rows.append({
             "metric": metric,
             "mean_ic": round(mean_ic, 4) if not np.isnan(mean_ic) else np.nan,
             "icir": round(icir_val, 4) if not np.isnan(icir_val) else np.nan,
             "abs_icir": round(abs_icir, 4),
+            "ci_lower": round(ci_lo, 3) if pd.notna(ci_lo) else np.nan,
+            "ci_upper": round(ci_hi, 3) if pd.notna(ci_hi) else np.nan,
+            "ci_crosses_zero": ci_crosses_zero,
+            "avg_tickers_per_year": round(avg_tickers, 1),
             "n_periods": n,
+            "low_sample": low_sample,
             "direction": "低いほど良い" if sign < 0 else "高いほど良い",
             "usable": effective > 0.15,
         })
@@ -151,13 +196,20 @@ def compute_fundamental_ic_weights(
     total = sum(v for v, _ in icir_map.values())
     if total == 0:
         logger.warning("All fundamental ICIRs zero — equal weights applied")
-        n = len(metric_names)
-        weights = {m: 1.0 / n for m in metric_names}
+        n_m = len(metric_names)
+        weights = {m: 1.0 / n_m for m in metric_names}
     else:
-        # Signed weights: negative IC metric gets negative weight
-        # composite = Σ(metric × signed_weight); rank_normalize(higher=True) then
-        # naturally ranks stocks with IC-aligned values higher
         weights = {m: (abs_icir / total) * sign for m, (abs_icir, sign) in icir_map.items()}
+
+    # Warn when dominant metrics have CI crossing zero
+    uncertain = [
+        r["metric"] for _, r in ic_summary.iterrows()
+        if r.get("ci_crosses_zero") and abs(weights.get(r["metric"], 0)) > 0.1
+    ]
+    if uncertain:
+        logger.warning(
+            f"High-weight metrics with CI crossing zero (statistically uncertain): {uncertain}"
+        )
 
     logger.info("Fundamental IC weights (signed): " + ", ".join(f"{k}={v:+.3f}" for k, v in weights.items()))
     return weights, ic_summary

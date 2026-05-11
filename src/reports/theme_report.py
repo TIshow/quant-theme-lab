@@ -377,6 +377,13 @@ def _ic_table(ic_summary: pd.DataFrame, weights: dict) -> str:
         "　<strong>ICIR</strong>: その安定性（mean/std）。±0.3超で実用シグナル。"
         "　<strong>Weight</strong>: ICIR絶対値に比例して自動決定された重み。"
         "</div>"
+        "<div style='font-size:.72em;color:#fbbf24;margin-bottom:8px;padding:5px 10px;"
+        "background:#1e293b;border-left:3px solid #fbbf24;border-radius:4px'>"
+        "⚠️ <strong>インサンプル注意</strong>: "
+        "これらのICIRは分析対象期間の全データで計算されており、"
+        "バックテスト期間と同じデータを使用しています。"
+        "厳密なアウトオブサンプル検証にはWalk-forwardでのIC計算が必要です（将来実装予定）。"
+        "</div>"
     )
 
     rows_html = ""
@@ -436,13 +443,27 @@ def _fundamental_ic_table(fund_ic_summary: pd.DataFrame) -> str:
     if fund_ic_summary.empty:
         return "<p style='color:#94a3b8'>No fundamental IC data.</p>"
 
+    has_low_sample = fund_ic_summary.get("low_sample", pd.Series(dtype=bool)).any()
+    has_ci_cross = fund_ic_summary.get("ci_crosses_zero", pd.Series(dtype=bool)).any()
+
     header_notes = (
         "<div style='font-size:.75em;color:#94a3b8;margin-bottom:8px'>"
         "<strong>Mean IC</strong>: 財務指標と翌年リターンの Spearman 相関の平均。"
         "　<strong>ICIR</strong>: IC の安定性（mean/std）。0.15超で有効シグナル（年次データは基準が低め）。"
+        "　<strong>95% CI</strong>: Bootstrap信頼区間。ゼロをまたぐ場合はノイズの可能性。"
         "　<strong>方向性</strong>: IC が負 = 低い方が翌年リターン高（逆張り）。スコアリングに自動反映済み。"
         "</div>"
     )
+
+    if has_low_sample:
+        header_notes += (
+            "<div style='font-size:.75em;color:#fbbf24;margin-bottom:8px;padding:6px 10px;"
+            "background:#1e293b;border-left:3px solid #fbbf24;border-radius:4px'>"
+            "⚠️ <strong>少数銘柄警告</strong>: "
+            "クロスセクションの銘柄数が少ない（目安20未満）ため、ICIRの推定精度が低い。"
+            "信頼区間を必ず確認し、ゼロをまたぐ場合は過信しないこと。"
+            "</div>"
+        )
 
     rows_html = ""
     for _, r in fund_ic_summary.iterrows():
@@ -453,12 +474,28 @@ def _fundamental_ic_table(fund_ic_summary: pd.DataFrame) -> str:
         mean_ic_val = f"{r['mean_ic']:.3f}" if pd.notna(r.get("mean_ic")) else "N/A"
         direction = r.get("direction", "—")
         dir_color = "#f87171" if "低" in str(direction) else "#4ade80"
+
+        ci_lo = r.get("ci_lower")
+        ci_hi = r.get("ci_upper")
+        if pd.notna(ci_lo) and pd.notna(ci_hi):
+            crosses = ci_lo < 0 < ci_hi
+            ci_color = "#f87171" if crosses else "#94a3b8"
+            ci_str = f"<span style='color:{ci_color}'>[{ci_lo:.2f}, {ci_hi:.2f}]</span>"
+        else:
+            ci_str = "—"
+
+        low_s = r.get("low_sample", False)
+        n_str = str(r.get("n_periods", 0))
+        if low_s:
+            n_str = f"<span style='color:#fbbf24'>{n_str} ⚠</span>"
+
         rows_html += (
             f"<tr>"
             f"<td>{metric}</td>"
             f"<td>{mean_ic_val}</td>"
             f"<td>{icir_val}</td>"
-            f"<td>{r.get('n_periods', 0)}</td>"
+            f"<td>{ci_str}</td>"
+            f"<td>{n_str}</td>"
             f"<td style='color:{dir_color}'>{direction}</td>"
             f"<td>{badge}</td>"
             f"</tr>"
@@ -467,7 +504,7 @@ def _fundamental_ic_table(fund_ic_summary: pd.DataFrame) -> str:
     return (
         header_notes
         + "<table><thead><tr>"
-        "<th>Metric</th><th>Mean IC</th><th>ICIR</th><th>Periods</th>"
+        "<th>Metric</th><th>Mean IC</th><th>ICIR</th><th>95% CI</th><th>Periods</th>"
         "<th>方向性</th><th>Signal</th>"
         "</tr></thead><tbody>" + rows_html + "</tbody></table>"
     )

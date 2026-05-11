@@ -27,6 +27,12 @@ def compute_ic_weights(
     All other components are weighted proportional to abs(ICIR).
     Falls back to YAML weights if there is insufficient history.
 
+    NOTE — In-sample bias: IC weights are computed on the full price history
+    passed in. When the same history is used in simple_backtest.py, this
+    introduces look-ahead bias in the weight selection. These weights are
+    best interpreted as "current scoring weights", not as walk-forward-valid
+    backtest inputs. See walk_forward.py for out-of-sample validation.
+
     Returns:
         weights:    component → weight dict (sums to 1.0)
         ic_summary: DataFrame with IC/ICIR per component for reporting

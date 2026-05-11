@@ -45,3 +45,4 @@ fundamental_weights:
 backtest:
   transaction_cost_bps: 30
   execution_lag_days: 1
+  risk_free_rate_annual: 0.01

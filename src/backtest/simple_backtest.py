@@ -142,16 +142,19 @@ def run_monthly_momentum_top_n_backtest(
 
     ret = df["portfolio_return"].dropna()
     logger.info(
-        f"Backtest: Sharpe={_sharpe(ret):.2f}  MaxDD={_max_dd(df['cumulative_return']):.1%}  "
+        f"Backtest: Sharpe={_sharpe(ret):.2f}  MaxDD={_max_dd(df['cumulative_return']):.1%}  "  # rf=0 for log
         f"Ann.Return={((1 + ret.mean()) ** 12 - 1):.1%}  n={len(ret)}"
     )
     return df
 
 
-def _sharpe(monthly_rets: pd.Series) -> float:
-    if len(monthly_rets) < 3 or monthly_rets.std() == 0:
+def _sharpe(monthly_rets: pd.Series, rf_annual: float = 0.0) -> float:
+    if len(monthly_rets) < 3:
         return np.nan
-    return float((monthly_rets.mean() / monthly_rets.std()) * np.sqrt(12))
+    rf_monthly = (1 + rf_annual) ** (1 / 12) - 1
+    excess = monthly_rets - rf_monthly
+    std = excess.std()
+    return float((excess.mean() / std) * np.sqrt(12)) if std > 0 else np.nan
 
 
 def _max_dd(cum_ret: pd.Series) -> float:

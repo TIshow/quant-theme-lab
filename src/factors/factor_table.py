@@ -31,7 +31,7 @@ def build_factor_table(prices: pd.DataFrame, theme: str | None = None, config: d
         compute_volatility(prices),
         compute_max_drawdown(prices),
         compute_liquidity(prices),
-        compute_risk_metrics(prices),
+        compute_risk_metrics(prices, rf_annual=config.get("backtest", {}).get("risk_free_rate_annual", 0.0) if config else 0.0),
         compute_moving_average_features(prices),
         compute_fundamental_factors(tickers, config=config, theme=theme),
     ]

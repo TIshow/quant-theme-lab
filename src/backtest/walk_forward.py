@@ -109,7 +109,10 @@ def run_walk_forward(
     return df
 
 
-def _sharpe(monthly_rets: pd.Series) -> float:
-    if len(monthly_rets) < 3 or monthly_rets.std() == 0:
+def _sharpe(monthly_rets: pd.Series, rf_annual: float = 0.0) -> float:
+    if len(monthly_rets) < 3:
         return np.nan
-    return float((monthly_rets.mean() / monthly_rets.std()) * np.sqrt(12))
+    rf_monthly = (1 + rf_annual) ** (1 / 12) - 1
+    excess = monthly_rets - rf_monthly
+    std = excess.std()
+    return float((excess.mean() / std) * np.sqrt(12)) if std > 0 else np.nan
