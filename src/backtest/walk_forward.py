@@ -2,12 +2,13 @@
 Walk-forward validation: out-of-sample test to detect in-sample overfitting.
 
 At each step:
-  - Train window  : compute factor ranks on historical data
-  - Test window   : hold top-N, measure actual realized return
-  - Slide forward by `test_months`
+  - Train window : compute factor ranks on historical data
+  - Test window  : hold top-N, measure actual realized return
+  - Slide forward by test_months
 
-This prevents look-ahead bias and gives a realistic estimate of
-how the strategy would have performed in real time.
+Transaction costs mirror simple_backtest.py:
+  - new position  : buy + sell = 2 × tc
+  - held position : sell only  = 1 × tc
 """
 import numpy as np
 import pandas as pd
@@ -37,13 +38,13 @@ def run_walk_forward(
     tc = transaction_cost_bps / 10_000
 
     results = []
+    prev_tickers: list[str] = []
 
     for start_i in range(train_months, len(months) - test_months):
         train_end = months[start_i - 1]
         test_start = months[start_i]
         test_end = months[start_i + test_months - 1]
 
-        # --- rank on train window ---
         train_hist = pivot[pivot.index <= train_end].iloc[-lookback_days - 1:]
         mom = {}
         for t in stock_cols:
@@ -56,22 +57,21 @@ def run_walk_forward(
 
         selected = sorted(mom, key=lambda x: mom[x], reverse=True)[:top_n]
 
-        # --- evaluate over each test month ---
         test_months_idx = [m for m in months if test_start <= m <= test_end]
         for j, hold_date in enumerate(test_months_idx):
-            if j == 0:
-                entry_date = train_end
-            else:
-                entry_date = test_months_idx[j - 1]
+            entry_date = train_end if j == 0 else test_months_idx[j - 1]
 
             pf_rets = []
             for t in selected:
                 p0 = pivot.loc[entry_date, t] if entry_date in pivot.index else np.nan
                 p1 = pivot.loc[hold_date, t] if hold_date in pivot.index else np.nan
                 if pd.notna(p0) and pd.notna(p1) and p0 > 0:
-                    pf_rets.append((p1 / p0) - 1 - tc)
+                    turnover = int(t not in prev_tickers)
+                    cost = tc * (1 + turnover)  # new: 2tc, held: 1tc
+                    pf_rets.append((p1 / p0) - 1 - cost)
 
             port_ret = float(np.mean(pf_rets)) if pf_rets else np.nan
+            prev_tickers = selected
 
             row: dict = {
                 "date": hold_date,

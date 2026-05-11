@@ -97,6 +97,7 @@ def main(theme: str) -> None:
         transaction_cost_bps=tx_bps,
         execution_lag_days=lag,
         benchmark_ticker=bm,
+        score_df=ranking,
     )
     save_csv(backtest, f"data/processed/backtests/{theme}_backtest.csv")
 
