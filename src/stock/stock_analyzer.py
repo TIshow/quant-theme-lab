@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 from src.config.loader import load_theme_config, get_theme_universe, get_weights, get_benchmark, load_universe
 from src.data.price_loader import download_price_data
+from src.data.irbank_scraper import fetch_fundamentals
 from src.factors.factor_table import build_factor_table
+from src.factors.fundamental_valuation import compute_fundamental_metrics
 from src.scoring.scorer import compute_scores
 from src.scoring.ranking import rank_stocks
 from src.analytics.correlation import compute_correlation_matrix, get_top_correlated_stocks
@@ -70,12 +72,15 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
     full_universe = load_universe()
     ticker_themes = full_universe[full_universe["ticker"] == ticker][["theme", "theme_purity"]].to_dict("records")
 
-    summary_metrics = _build_summary_metrics(price_history, factor_df[factor_df["Ticker"] == ticker].iloc[0] if not factor_df[factor_df["Ticker"] == ticker].empty else pd.Series(dtype=float))
+    factor_row = factor_df[factor_df["Ticker"] == ticker].iloc[0] if not factor_df[factor_df["Ticker"] == ticker].empty else pd.Series(dtype=float)
+    summary_metrics = _build_summary_metrics(price_history, factor_row)
 
     data_quality = {
         "available_history_days": int(ranking_row.get("available_history_days", len(price_history))),
         "data_quality_flag": ranking_row.get("data_quality_flag", "UNKNOWN"),
     }
+
+    fundamental_metrics = _fetch_fundamental_metrics(ticker, price_history)
 
     return {
         "ticker": ticker,
@@ -84,6 +89,7 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
         "theme": theme,
         "ticker_themes": ticker_themes,
         "summary_metrics": summary_metrics,
+        "fundamental_metrics": fundamental_metrics,
         "theme_rank": theme_rank,
         "category_rank": category_rank,
         "ranking_row": ranking_row,
@@ -122,6 +128,8 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
     ticker_themes = full_universe[full_universe["ticker"] == ticker][["theme", "theme_purity"]].to_dict("records")
     n = len(price_history)
 
+    fundamental_metrics = _fetch_fundamental_metrics(ticker, price_history)
+
     return {
         "ticker": ticker,
         "name": ticker,
@@ -129,6 +137,7 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
         "theme": None,
         "ticker_themes": ticker_themes,
         "summary_metrics": summary_metrics,
+        "fundamental_metrics": fundamental_metrics,
         "theme_rank": None,
         "category_rank": None,
         "ranking_row": pd.Series(dtype=float),
@@ -141,6 +150,17 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
             "data_quality_flag": "OK" if n >= 252 else "LIMITED_HISTORY" if n >= 120 else "VERY_SHORT_HISTORY",
         },
     }
+
+
+def _fetch_fundamental_metrics(ticker: str, price_history: pd.DataFrame) -> dict:
+    """Fetch IRBank fundamentals and compute valuation metrics for JP tickers."""
+    if not ticker.endswith(".T") or price_history.empty:
+        return {}
+    fund_df = fetch_fundamentals(ticker, use_cache=True)
+    if fund_df.empty:
+        return {}
+    current_price = float(price_history.sort_values("Date")["Close"].iloc[-1])
+    return compute_fundamental_metrics(fund_df, current_price)
 
 
 def _build_summary_metrics(price_history: pd.DataFrame, factor_row: pd.Series) -> pd.DataFrame:

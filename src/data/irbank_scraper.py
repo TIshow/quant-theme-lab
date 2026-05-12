@@ -89,6 +89,12 @@ _TABLE_COLUMNS = {
         "現金等":      "cash",
         "営業CFマージン": "operating_cf_margin",
     },
+    3: {  # Dividend
+        "年間配当":  "dps",
+        "配当金":    "dps",
+        "配当利回り": "dividend_yield",
+        "配当性向":  "payout_ratio",
+    },
 }
 
 # Columns that are already in percent / ratio (do NOT multiply by 億)
@@ -96,6 +102,7 @@ _RATIO_COLS = {
     "ROE", "ROA", "営利率", "原価率", "販管費率",
     "自己資本比率", "有利子負債比率", "営業CFマージン",
     "EPS", "BPS",
+    "年間配当", "配当金", "配当利回り", "配当性向",
 }
 
 

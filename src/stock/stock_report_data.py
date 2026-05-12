@@ -14,4 +14,7 @@ def build_stock_report_data(analysis_result: dict) -> dict:
 
     sm = data.get("summary_metrics", pd.DataFrame())
     data["metrics_dict"] = sm.iloc[0].to_dict() if not sm.empty else {}
+
+    # fundamental_metrics is passed through as-is (already a plain dict)
+    data.setdefault("fundamental_metrics", {})
     return data

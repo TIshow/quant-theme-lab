@@ -21,3 +21,40 @@ def signed_cls(v) -> str:
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return ""
     return "pos" if v > 0 else "neg"
+
+
+def fmt_x(v, digits: int = 1) -> str:
+    """Format a multiple (e.g. PER): 15.2 → '15.2x'. Returns '—' for invalid."""
+    if v is None or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return "—"
+    return f"{v:.{digits}f}x"
+
+
+def fmt_jpy(v) -> str:
+    """Format a JPY amount: 1.5e10 → '150.0億'. Returns '—' for invalid."""
+    if v is None or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return "—"
+    sign = "-" if v < 0 else ""
+    a = abs(v)
+    if a >= 1e12:
+        return f"{sign}¥{a / 1e12:.1f}兆"
+    if a >= 1e8:
+        return f"{sign}¥{a / 1e8:.1f}億"
+    if a >= 1e6:
+        return f"{sign}¥{a / 1e6:.0f}百万"
+    return f"{sign}¥{a:.0f}"
+
+
+def pct_already(v, digits: int = 1) -> str:
+    """Format a value already expressed in percent: 15.3 → '15.3%'. Returns '—' for invalid."""
+    if v is None or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return "—"
+    return f"{v:.{digits}f}%"
+
+
+def pct_signed(v, digits: int = 1) -> str:
+    """Format a signed percent growth: 12.3 → '+12.3%', -5.4 → '-5.4%'. Returns '—' for invalid."""
+    if v is None or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return "—"
+    sign = "+" if v > 0 else ""
+    return f"{sign}{v:.{digits}f}%"
