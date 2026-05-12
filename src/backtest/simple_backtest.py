@@ -93,10 +93,8 @@ def run_monthly_momentum_top_n_backtest(
         if not selected:
             continue
 
-        all_dates = pivot.index[pivot.index > rebal_date]
-        exec_date = all_dates[execution_lag_days - 1] if len(all_dates) >= execution_lag_days else rebal_date
-        exit_dates = pivot.index[pivot.index > hold_date]
-        exit_date = exit_dates[execution_lag_days - 1] if len(exit_dates) >= execution_lag_days else hold_date
+        exec_date = _lag_date(pivot.index, rebal_date, execution_lag_days)
+        exit_date = _lag_date(pivot.index, hold_date, execution_lag_days)
 
         tc = transaction_cost_bps / 10_000
 
@@ -146,6 +144,12 @@ def run_monthly_momentum_top_n_backtest(
         f"Ann.Return={((1 + ret.mean()) ** 12 - 1):.1%}  n={len(ret)}"
     )
     return df
+
+
+def _lag_date(index: pd.DatetimeIndex, after: pd.Timestamp, lag: int) -> pd.Timestamp:
+    """Return the trading date `lag` days after `after`; falls back to `after` if unavailable."""
+    future = index[index > after]
+    return future[lag - 1] if len(future) >= lag else after
 
 
 def _sharpe(monthly_rets: pd.Series, rf_annual: float = 0.0) -> float:

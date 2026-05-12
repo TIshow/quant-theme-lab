@@ -8,6 +8,7 @@ from jinja2 import Template
 from src.stock.stock_report_data import build_stock_report_data
 from src.utils.dates import today_str
 from src.utils.logger import get_logger
+from src.reports.format_utils import fmt, pct, signed_cls
 
 logger = get_logger(__name__)
 
@@ -105,18 +106,10 @@ Not investment advice. Data via Yahoo Finance / yfinance. Date: {{ date }}.</div
 </div></body></html>"""
 
 
-def _pct(v) -> str:
-    return f"{v*100:.2f}%" if v is not None and v == v else "N/A"
-
-
-def _f(v, d=2) -> str:
-    return f"{v:.{d}f}" if v is not None and v == v else "N/A"
-
-
-def _cls(v) -> str:
-    if v is None or (isinstance(v, float) and v != v):
-        return ""
-    return "pos" if v > 0 else "neg"
+# Local aliases kept for backward compatibility within this file
+_pct = pct
+_f = fmt
+_cls = signed_cls
 
 
 def _price_chart(dates, prices, ticker) -> str:

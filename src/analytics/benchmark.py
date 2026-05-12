@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import linregress
 
+from src.utils.constants import TRADING_DAYS_PER_YEAR
+
 
 def compute_benchmark_relative_returns(
     asset_returns: pd.Series,
@@ -26,11 +28,11 @@ def compute_beta(asset_returns: pd.Series, benchmark_returns: pd.Series) -> floa
 def compute_alpha(
     asset_returns: pd.Series,
     benchmark_returns: pd.Series,
-    risk_free_annual: float = 0.0,
+    rf_annual: float = 0.0,
 ) -> float:
     beta = compute_beta(asset_returns, benchmark_returns)
     if np.isnan(beta):
         return np.nan
     df = pd.concat([asset_returns, benchmark_returns], axis=1).dropna()
-    rf_daily = risk_free_annual / 252
-    return float((df.iloc[:, 0].mean() - rf_daily - beta * (df.iloc[:, 1].mean() - rf_daily)) * 252)
+    rf_daily = rf_annual / TRADING_DAYS_PER_YEAR
+    return float((df.iloc[:, 0].mean() - rf_daily - beta * (df.iloc[:, 1].mean() - rf_daily)) * TRADING_DAYS_PER_YEAR)

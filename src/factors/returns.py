@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-PERIOD_DAYS = {"1m": 21, "3m": 63, "6m": 126, "12m": 252}
+from src.utils.constants import PERIOD_DAYS
 
 
 def compute_daily_returns(prices: pd.DataFrame) -> pd.DataFrame:

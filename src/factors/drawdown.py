@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from src.utils.constants import PERIOD_DAYS
+
 
 def _max_drawdown(series: pd.Series) -> float:
     if len(series) < 2:
@@ -15,7 +17,7 @@ def compute_max_drawdown(prices: pd.DataFrame) -> pd.DataFrame:
         closes = grp.sort_values("Date")["Close"].dropna()
         n = len(closes)
         row: dict = {"Ticker": ticker}
-        for label, days in [("3m", 63), ("6m", 126), ("12m", 252)]:
+        for label, days in PERIOD_DAYS.items():
             row[f"max_drawdown_{label}"] = _max_drawdown(closes.iloc[-days:]) if n > days else np.nan
         row["max_drawdown_full"] = _max_drawdown(closes)
         rows.append(row)

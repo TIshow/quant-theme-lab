@@ -55,7 +55,8 @@ def _build_panel(
 
             try:
                 fy_end = pd.to_datetime(fy + "/01", format="%Y/%m/%d") + pd.offsets.MonthEnd(0)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Could not parse fiscal_year '{fy}' for {ticker}: {e}")
                 continue
 
             filing_date = fy_end + pd.Timedelta(days=filing_lag_days)

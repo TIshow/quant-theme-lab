@@ -153,7 +153,7 @@ def _add_derived(df: pd.DataFrame) -> pd.DataFrame:
 # ---------- cache ----------
 
 def _cache_path(ticker: str) -> Path:
-    code = ticker.replace(".T", "").replace(".T", "")
+    code = ticker.replace(".T", "")
     return _CACHE_DIR / f"{code}_fundamentals.json"
 
 
@@ -162,8 +162,8 @@ def _load_cache(ticker: str) -> pd.DataFrame | None:
     if p.exists():
         try:
             return pd.read_json(p)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Fundamentals cache corrupted for {ticker}: {e} — re-fetching")
     return None
 
 

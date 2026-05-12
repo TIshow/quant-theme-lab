@@ -7,6 +7,7 @@ from pathlib import Path
 from jinja2 import Template
 from src.utils.dates import today_str
 from src.utils.logger import get_logger
+from src.reports.format_utils import fmt
 
 logger = get_logger(__name__)
 
@@ -197,10 +198,8 @@ def _cluster_chart(clusters: pd.DataFrame) -> str:
     return pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
 
 
-def _fmt(v, digits=1, suffix="") -> str:
-    if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
-    return f"{v:.{digits}f}{suffix}"
+# _fmt is imported as fmt from format_utils — kept as alias for callers in this file
+_fmt = fmt
 
 
 def _fundamental_table(ranking_df: pd.DataFrame) -> str:

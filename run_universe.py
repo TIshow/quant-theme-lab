@@ -38,8 +38,8 @@ def main(themes: list[str], benchmark: str = "SPY") -> None:
             sd = cfg["analysis"].get("start_date", "2023-01-01")
             if sd < start_date:
                 start_date = sd
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Could not load config for theme '{t}': {e} — using default start_date")
 
     prices = download_price_data(all_tickers, start_date=start_date)
 
