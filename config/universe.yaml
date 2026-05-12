@@ -76,6 +76,111 @@ stocks:
     themes:
       battery_storage: 3
 
+  - ticker: "9519.T"
+    name: "Renova"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 4
+
+  - ticker: "1407.T"
+    name: "West Holdings"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 5
+
+  - ticker: "5074.T"
+    name: "TES Holdings"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 5
+
+  - ticker: "1436.T"
+    name: "Green Energy & Company"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 5
+
+  - ticker: "8002.T"
+    name: "Marubeni"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "5582.T"
+    name: "GRID"
+    country: "JP"
+    sector: "technology"
+    themes:
+      battery_storage: 4
+
+  - ticker: "7047.T"
+    name: "Port"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 5
+
+  - ticker: "8593.T"
+    name: "Mitsubishi HC Capital"
+    country: "JP"
+    sector: "financials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "9531.T"
+    name: "Tokyo Gas"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 3
+
+  - ticker: "6503.T"
+    name: "Mitsubishi Electric"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "5020.T"
+    name: "ENEOS Holdings"
+    country: "JP"
+    sector: "energy"
+    themes:
+      battery_storage: 2
+
+  - ticker: "8053.T"
+    name: "Sumitomo Corporation"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 2
+
+  - ticker: "9517.T"
+    name: "e-Rex"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 3
+
+  - ticker: "9161.T"
+    name: "ID&E Holdings"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 3
+
+  - ticker: "6645.T"
+    name: "Omron"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      battery_storage: 2
+
   - ticker: "6857.T"
     name: "Advantest"
     country: "JP"
