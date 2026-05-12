@@ -24,6 +24,7 @@ def compute_fundamental_factors(
     tickers: list[str],
     config: dict | None = None,
     theme: str | None = None,
+    fundamentals_data: dict[str, pd.DataFrame] | None = None,
 ) -> pd.DataFrame:
     """
     Return one row per JP ticker with fundamental factor values.
@@ -31,6 +32,11 @@ def compute_fundamental_factors(
     Metric names are driven by config['fundamental_weights'].
     If config is None, all available metrics are returned.
     US tickers are silently skipped.
+
+    Args:
+        fundamentals_data: Pre-fetched {ticker: DataFrame} from fetch_all_fundamentals().
+                           When provided, skips IRBank fetching entirely.
+                           When None, fetches via fetch_fundamentals() as before.
     """
     fw = config.get("fundamental_weights", {}) if config else {}
     metric_names = list(fw.keys()) if fw else None  # None = return all
@@ -40,14 +46,16 @@ def compute_fundamental_factors(
         if not ticker.endswith(".T"):
             continue
 
-        df = fetch_fundamentals(ticker, use_cache=True)
+        if fundamentals_data is not None:
+            df = fundamentals_data.get(ticker, pd.DataFrame())
+        else:
+            df = fetch_fundamentals(ticker, use_cache=True)
+            if not df.empty and theme:
+                df = compute_theme_kpis(theme, df)
+
         if df.empty:
             rows.append({"Ticker": ticker})
             continue
-
-        # Apply theme-specific KPIs to historical data before extracting latest
-        if theme:
-            df = compute_theme_kpis(theme, df)
 
         row = _latest_actual(df)
         if row is None:

@@ -53,7 +53,11 @@ def main(theme: str) -> None:
 
     theme_prices = prices[prices["Ticker"].isin(tickers)].copy()
 
-    factor_df = build_factor_table(theme_prices, theme=theme, config=config)
+    # Fetch fundamentals once; reused by factor_table AND fundamental IC
+    fund_yaml_weights = config.get("fundamental_weights", {})
+    fundamentals_data = fetch_all_fundamentals(tickers, theme=theme) if fund_yaml_weights else {}
+
+    factor_df = build_factor_table(theme_prices, theme=theme, config=config, fundamentals_data=fundamentals_data or None)
     save_parquet(factor_df, f"data/processed/factors/{theme}_factors.parquet")
 
     ic_weights, ic_summary = compute_ic_weights(theme_prices, weights)
@@ -61,9 +65,7 @@ def main(theme: str) -> None:
 
     # Fundamental IC weights (annual)
     # Requires long price history (10yr) — separate from theme start_date
-    fund_yaml_weights = config.get("fundamental_weights", {})
     if fund_yaml_weights:
-        fundamentals_data = fetch_all_fundamentals(tickers, theme=theme)
         jp_tickers = [t for t in tickers if t.endswith(".T")]
         fund_price_cache = Path(f"data/processed/prices/{theme}_fund_ic_prices.parquet")
         if fund_price_cache.exists():
@@ -79,6 +81,7 @@ def main(theme: str) -> None:
         config = {**config, "fundamental_weights": fund_ic_weights}
     else:
         fund_ic_summary = pd.DataFrame()
+        fundamentals_data = {}
 
     scores = compute_scores(factor_df, universe_df, ic_weights, config)
     ranking = rank_stocks(scores, universe_df)

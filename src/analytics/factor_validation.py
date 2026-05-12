@@ -10,15 +10,66 @@ ICIR = mean(IC series) / std(IC series)
      → < 0.1  noise, remove from scoring
 
 IC Decay measures how quickly predictive power fades with horizon.
+
+Performance:
+  compute_ic_timeseries() precomputes the full factor matrix in one
+  vectorized pass (O(n)), then slices by date in the loop — O(1) per month.
+  Previous approach called build_factor_table() each month → O(n²).
+  Supported factors are handled natively; unsupported factors fall back
+  to the legacy per-month approach.
 """
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
-from src.factors.factor_table import build_factor_table
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+# ---------------------------------------------------------------------------
+# Precomputed factor matrix — one vectorized pass over the full price history
+# ---------------------------------------------------------------------------
+
+def _factor_matrix_from_prices(prices: pd.DataFrame, factor_col: str) -> pd.DataFrame | None:
+    """
+    Return a (date × ticker) DataFrame of factor values computed via
+    vectorized rolling operations.  Returns None for unsupported factors.
+    """
+    close = prices.pivot_table(index="Date", columns="Ticker", values="Close")
+    daily_ret = close.pct_change()
+
+    if factor_col == "return_1m":
+        return close.pct_change(21)
+    if factor_col == "return_3m":
+        return close.pct_change(63)
+    if factor_col == "return_6m":
+        return close.pct_change(126)
+    if factor_col == "return_12m":
+        return close.pct_change(252)
+
+    if factor_col == "annualized_volatility":
+        # Use 63-day rolling window (same lookback as volatility_3m)
+        return daily_ret.rolling(63, min_periods=21).std() * np.sqrt(252)
+
+    if factor_col == "max_drawdown_12m":
+        rolling_max = close.rolling(252, min_periods=21).max()
+        return (close - rolling_max) / rolling_max  # always ≤ 0
+
+    if factor_col == "avg_volume_3m":
+        vol = prices.pivot_table(index="Date", columns="Ticker", values="Volume")
+        return vol.rolling(63, min_periods=21).mean()
+
+    if factor_col in ("sharpe_3m", "sharpe_6m", "sharpe_12m"):
+        w = {"sharpe_3m": 63, "sharpe_6m": 126, "sharpe_12m": 252}[factor_col]
+        mean = daily_ret.rolling(w, min_periods=w // 2).mean()
+        std = daily_ret.rolling(w, min_periods=w // 2).std()
+        return (mean / std.replace(0, np.nan)) * np.sqrt(252)
+
+    return None  # unsupported → caller falls back to legacy method
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def compute_ic(
     factor_values: pd.Series,
@@ -40,11 +91,74 @@ def compute_ic_timeseries(
 ) -> pd.Series:
     """
     Monthly IC time-series for a single factor column.
-    At each rebalance date, compute the cross-sectional Spearman IC
-    between the factor and realized forward returns.
+
+    At each rebalance date, computes the cross-sectional Spearman IC
+    between the factor snapshot and realized forward returns.
+
+    For supported factors the full factor matrix is precomputed once
+    (vectorized rolling), making the loop O(1) per month instead of
+    rebuilding the factor table from scratch each time.
     """
-    pivot = prices.pivot_table(index="Date", columns="Ticker", values="Close")
-    monthly_dates = pivot.resample(rebalance_freq).last().index
+    close_pivot = prices.pivot_table(index="Date", columns="Ticker", values="Close")
+    monthly_dates = close_pivot.resample(rebalance_freq).last().index
+
+    factor_matrix = _factor_matrix_from_prices(prices, factor_col)
+
+    if factor_matrix is not None:
+        return _ic_timeseries_fast(close_pivot, factor_matrix, monthly_dates, factor_col)
+    else:
+        logger.warning(
+            f"compute_ic_timeseries: no precomputed method for '{factor_col}' — "
+            "falling back to legacy per-month rebuild (slow)"
+        )
+        return _ic_timeseries_legacy(prices, close_pivot, factor_col, monthly_dates)
+
+
+def _ic_timeseries_fast(
+    close_pivot: pd.DataFrame,
+    factor_matrix: pd.DataFrame,
+    monthly_dates: pd.DatetimeIndex,
+    factor_col: str,
+) -> pd.Series:
+    """O(months) IC loop using precomputed factor matrix."""
+    ic_values = {}
+    for i, date in enumerate(monthly_dates[:-1]):
+        fwd_date = monthly_dates[i + 1]
+
+        if date not in factor_matrix.index:
+            continue
+
+        factor_snap = factor_matrix.loc[date].dropna()
+        if len(factor_snap) < 5:
+            continue
+
+        if date not in close_pivot.index or fwd_date not in close_pivot.index:
+            continue
+
+        p0 = close_pivot.loc[date].dropna()
+        p1 = close_pivot.loc[fwd_date].dropna()
+
+        common = factor_snap.index.intersection(p0.index).intersection(p1.index)
+        if len(common) < 5:
+            continue
+
+        fwd_ret = pd.Series(p1[common].values / p0[common].values - 1, index=common)
+        ic_values[date] = compute_ic(factor_snap[common], fwd_ret)
+
+    return pd.Series(ic_values, name=f"IC_{factor_col}")
+
+
+def _ic_timeseries_legacy(
+    prices: pd.DataFrame,
+    close_pivot: pd.DataFrame,
+    factor_col: str,
+    monthly_dates: pd.DatetimeIndex,
+) -> pd.Series:
+    """
+    Original O(n²) implementation kept as fallback for unsupported factors.
+    Rebuilds the full factor table at each month-end.
+    """
+    from src.factors.factor_table import build_factor_table
 
     ic_values = {}
     for i, date in enumerate(monthly_dates[:-1]):
@@ -62,8 +176,8 @@ def compute_ic_timeseries(
         fwd_date = monthly_dates[i + 1]
         fwd_returns = {}
         for ticker in factors["Ticker"]:
-            p_now = pivot.loc[:date, ticker].dropna()
-            p_fwd = pivot.loc[:fwd_date, ticker].dropna()
+            p_now = close_pivot.loc[:date, ticker].dropna()
+            p_fwd = close_pivot.loc[:fwd_date, ticker].dropna()
             if p_now.empty or p_fwd.empty:
                 continue
             fwd_returns[ticker] = (p_fwd.iloc[-1] / p_now.iloc[-1]) - 1
@@ -73,8 +187,7 @@ def compute_ic_timeseries(
 
         factor_vals = factors.set_index("Ticker")[factor_col]
         fwd_series = pd.Series(fwd_returns)
-        ic = compute_ic(factor_vals, fwd_series)
-        ic_values[date] = ic
+        ic_values[date] = compute_ic(factor_vals, fwd_series)
 
     return pd.Series(ic_values, name=f"IC_{factor_col}")
 
@@ -120,7 +233,7 @@ def validate_all_factors(
         factor_cols = [
             "return_1m", "return_3m", "return_6m",
             "annualized_volatility", "max_drawdown_12m",
-            "avg_traded_value_3m", "sharpe_6m", "sharpe_12m",
+            "avg_volume_3m", "sharpe_6m", "sharpe_12m",
         ]
 
     rows = []
