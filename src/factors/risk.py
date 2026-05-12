@@ -9,7 +9,7 @@ def _sharpe(returns: pd.Series, rf_daily: float = 0.0) -> float:
         return np.nan
     excess = returns - rf_daily
     std = excess.std()
-    return float((excess.mean() / std) * TRADING_DAYS_PER_YEAR ** 0.5) if std > 0 else np.nan
+    return float((excess.mean() / std) * TRADING_DAYS_PER_YEAR ** 0.5) if std > 1e-10 else np.nan
 
 
 def _sortino(returns: pd.Series, rf_daily: float = 0.0) -> float:

@@ -72,7 +72,7 @@ def compute_fundamental_factors(
 
         rows.append(rec)
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["Ticker"])
 
 
 def fetch_all_fundamentals(

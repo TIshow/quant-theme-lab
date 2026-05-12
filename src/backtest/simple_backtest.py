@@ -158,7 +158,7 @@ def _sharpe(monthly_rets: pd.Series, rf_annual: float = 0.0) -> float:
     rf_monthly = (1 + rf_annual) ** (1 / 12) - 1
     excess = monthly_rets - rf_monthly
     std = excess.std()
-    return float((excess.mean() / std) * np.sqrt(12)) if std > 0 else np.nan
+    return float((excess.mean() / std) * np.sqrt(12)) if std > 1e-10 else np.nan
 
 
 def _max_dd(cum_ret: pd.Series) -> float:
