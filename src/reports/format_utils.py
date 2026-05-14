@@ -58,3 +58,18 @@ def pct_signed(v, digits: int = 1) -> str:
         return "—"
     sign = "+" if v > 0 else ""
     return f"{sign}{v:.{digits}f}%"
+
+
+def fmt_usd(v) -> str:
+    """Format a USD amount: 1.5e9 → '$1.5B'. Returns '—' for invalid."""
+    if v is None or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return "—"
+    sign = "-" if v < 0 else ""
+    a = abs(v)
+    if a >= 1e12:
+        return f"{sign}${a / 1e12:.1f}T"
+    if a >= 1e9:
+        return f"{sign}${a / 1e9:.1f}B"
+    if a >= 1e6:
+        return f"{sign}${a / 1e6:.0f}M"
+    return f"{sign}${a:.0f}"

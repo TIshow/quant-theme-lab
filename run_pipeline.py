@@ -19,7 +19,7 @@ from src.data.price_loader import download_price_data
 from src.data.storage import save_parquet, save_csv
 from src.factors.factor_table import build_factor_table
 from src.factors.fundamentals import fetch_all_fundamentals
-from src.scoring.scorer import compute_scores
+from src.scoring.scorer import compute_scores_by_region
 from src.scoring.ranking import rank_stocks
 from src.scoring.ic_weighter import compute_ic_weights
 from src.scoring.fundamental_ic import compute_fundamental_ic_weights
@@ -83,7 +83,7 @@ def main(theme: str) -> None:
         fund_ic_summary = pd.DataFrame()
         fundamentals_data = {}
 
-    scores = compute_scores(factor_df, universe_df, ic_weights, config)
+    scores = compute_scores_by_region(factor_df, universe_df, ic_weights, config)
     ranking = rank_stocks(scores, universe_df)
     save_csv(ranking, f"data/processed/rankings/{theme}_ranking.csv")
 

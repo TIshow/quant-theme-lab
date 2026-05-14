@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from src.data.irbank_scraper import fetch_fundamentals
+from src.data.yfinance_fundamentals import fetch_us_fundamentals
 from src.data.irbank_kpi import compute_theme_kpis
 from src.utils.logger import get_logger
 
@@ -43,15 +44,16 @@ def compute_fundamental_factors(
 
     rows = []
     for ticker in tickers:
-        if not ticker.endswith(".T"):
-            continue
+        is_jp = ticker.endswith(".T")
 
         if fundamentals_data is not None:
             df = fundamentals_data.get(ticker, pd.DataFrame())
-        else:
+        elif is_jp:
             df = fetch_fundamentals(ticker, use_cache=True)
             if not df.empty and theme:
                 df = compute_theme_kpis(theme, df)
+        else:
+            df = fetch_us_fundamentals(ticker, use_cache=True)
 
         if df.empty:
             rows.append({"Ticker": ticker})
@@ -85,10 +87,11 @@ def fetch_all_fundamentals(
     """
     results = {}
     for ticker in tickers:
-        if not ticker.endswith(".T"):
-            continue
-        df = fetch_fundamentals(ticker, use_cache=True)
-        if not df.empty and theme:
-            df = compute_theme_kpis(theme, df)
+        if ticker.endswith(".T"):
+            df = fetch_fundamentals(ticker, use_cache=True)
+            if not df.empty and theme:
+                df = compute_theme_kpis(theme, df)
+        else:
+            df = fetch_us_fundamentals(ticker, use_cache=True)
         results[ticker] = df
     return results

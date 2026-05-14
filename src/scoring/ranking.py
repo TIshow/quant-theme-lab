@@ -1,7 +1,7 @@
 import pandas as pd
 
 _ORDERED_COLS = [
-    "rank", "Ticker", "name", "country", "sector", "theme_purity",
+    "rank", "region_rank", "Ticker", "name", "country", "sector", "theme_purity",
     "final_score", "momentum_score", "risk_adjusted_return_score",
     "liquidity_score", "volatility_score", "drawdown_score",
     "fundamentals_score", "theme_purity_score",
@@ -24,6 +24,14 @@ def rank_stocks(scores: pd.DataFrame, universe_df: pd.DataFrame | None = None) -
 
     df = df.sort_values("final_score", ascending=False).reset_index(drop=True)
     df.insert(0, "rank", range(1, len(df) + 1))
+
+    # Region rank: rank within JP / US separately (requires `region` column from compute_scores_by_region)
+    if "region" in df.columns:
+        df["region_rank"] = (
+            df.groupby("region")["final_score"]
+            .rank(ascending=False, method="min")
+            .astype(int)
+        )
 
     existing = [c for c in _ORDERED_COLS if c in df.columns]
     rest = [c for c in df.columns if c not in existing]

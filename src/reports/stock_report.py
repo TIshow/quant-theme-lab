@@ -12,7 +12,7 @@ from src.utils.dates import today_str
 from src.utils.logger import get_logger
 from src.reports.format_utils import (
     fmt, pct, signed_cls,
-    fmt_x, fmt_jpy, pct_already, pct_signed,
+    fmt_x, fmt_jpy, fmt_usd, pct_already, pct_signed,
 )
 
 logger = get_logger(__name__)
@@ -74,7 +74,7 @@ _TEMPLATE = """<!DOCTYPE html>
 {% if theme_rank %}
 <div class="rank-box">
   <div><div class="rank-lbl">Theme Rank ({{ theme }})</div><div class="rank-num">#{{ theme_rank }}</div></div>
-  {% if category_rank %}<div><div class="rank-lbl">Category Rank</div><div class="rank-num">#{{ category_rank }}</div></div>{% endif %}
+  {% if category_rank %}<div><div class="rank-lbl">Region Rank (JP/US内)</div><div class="rank-num">#{{ category_rank }}</div></div>{% endif %}
 </div>
 {% endif %}
 
@@ -177,24 +177,28 @@ _TEMPLATE = """<!DOCTYPE html>
 <table><thead><tr><th>項目</th><th>金額</th></tr></thead><tbody>
   <tr><td>売上高</td><td>{{ fund.revenue_fmt }}</td></tr>
   <tr><td>営業利益</td><td>{{ fund.op_profit_fmt }}</td></tr>
-  <tr><td>経常利益</td><td>{{ fund.ord_profit_fmt }}</td></tr>
+  {% if fund.ord_profit_fmt %}<tr><td>経常利益</td><td>{{ fund.ord_profit_fmt }}</td></tr>{% endif %}
   <tr><td>純利益(推計)</td><td>{{ fund.net_income_fmt }}</td></tr>
   <tr><td>営業キャッシュフロー</td><td>{{ fund.op_cf_fmt }}</td></tr>
   <tr><td>フリーキャッシュフロー</td><td>{{ fund.free_cf_fmt }}</td></tr>
-  <tr><td>EPS</td><td>{{ fund.eps_fmt }}円/株</td></tr>
-  <tr><td>BPS</td><td>{{ fund.bps_fmt }}円/株</td></tr>
-  {% if fund.dps_val %}<tr><td>DPS</td><td>{{ fund.dps_val }}円/株</td></tr>{% endif %}
+  <tr><td>EPS</td><td>{{ fund.eps_fmt }} {{ fund.per_share_unit }}</td></tr>
+  <tr><td>BPS</td><td>{{ fund.bps_fmt }} {{ fund.per_share_unit }}</td></tr>
+  {% if fund.dps_val %}<tr><td>DPS</td><td>{{ fund.dps_val }} {{ fund.per_share_unit }}</td></tr>{% endif %}
 </tbody></table>
 
 <h3>財務推移チャート</h3>
 <div class="chart">{{ fund.revenue_chart }}</div>
+{{ fund.revenue_table }}
 <div class="chart">{{ fund.roe_chart }}</div>
+{{ fund.roe_table }}
 <div class="chart">{{ fund.cf_chart }}</div>
+{{ fund.cf_table }}
 <div class="chart">{{ fund.eps_chart }}</div>
+{{ fund.eps_table }}
 {% endif %}
 
 <div class="disc"><strong>免責事項:</strong> 本レポートは分析・教育目的のみです。投資助言ではありません。
-価格データ: Yahoo Finance / yfinance。財務データ: IRBank。作成日: {{ date }}。</div>
+価格データ: Yahoo Finance / yfinance。財務データ: IRBank (JP株) / yfinance (US株)。作成日: {{ date }}。</div>
 </div></body></html>"""
 
 # Local aliases kept for backward compatibility within this file
@@ -231,26 +235,34 @@ def _vol_chart(dates, volumes, traded_values, ticker) -> str:
 
 # ── fundamental charts (reuse existing plotlyjs from price chart) ─────────────
 
-def _to_oku(vals: list) -> list:
-    return [x / 1e8 if x is not None else None for x in vals]
+def _scale_money(vals: list, currency: str) -> tuple[list, str]:
+    """Scale raw monetary values to chart-friendly units. Returns (scaled_list, unit_label)."""
+    if currency == "USD":
+        divisor, unit = 1e9, "B USD"
+    else:
+        divisor, unit = 1e8, "億円"
+    return [x / divisor if x is not None else None for x in vals], unit
 
 
-def _revenue_chart(history: dict) -> str:
+def _revenue_chart(history: dict, currency: str = "JPY") -> str:
     fy   = history.get("fiscal_years", [])
-    rev  = _to_oku(history.get("revenue", []))
-    op   = _to_oku(history.get("operating_profit", []))
-    marg = history.get("operating_margin", [])
+    rev_raw = history.get("revenue", [])
+    op_raw  = history.get("operating_profit", [])
+    marg    = history.get("operating_margin", [])
 
     if not fy:
         return "<p>データなし</p>"
 
+    rev, unit = _scale_money(rev_raw, currency)
+    op,  _    = _scale_money(op_raw,  currency)
+
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(
-        go.Bar(x=fy, y=rev, name="売上高(億円)", marker_color="#3b82f6", opacity=0.85),
+        go.Bar(x=fy, y=rev, name=f"売上高({unit})", marker_color="#3b82f6", opacity=0.85),
         secondary_y=False,
     )
     fig.add_trace(
-        go.Bar(x=fy, y=op, name="営業利益(億円)", marker_color="#10b981", opacity=0.85),
+        go.Bar(x=fy, y=op, name=f"営業利益({unit})", marker_color="#10b981", opacity=0.85),
         secondary_y=False,
     )
     if any(v is not None for v in marg):
@@ -264,7 +276,7 @@ def _revenue_chart(history: dict) -> str:
         title="売上高・営業利益推移", barmode="group",
         legend=dict(orientation="h", y=-0.22),
     )
-    fig.update_yaxes(title_text="金額(億円)", secondary_y=False)
+    fig.update_yaxes(title_text=f"金額({unit})", secondary_y=False)
     fig.update_yaxes(title_text="利益率(%)", secondary_y=True)
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
@@ -305,19 +317,24 @@ def _roe_roa_chart(history: dict) -> str:
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
 
-def _cf_chart(history: dict) -> str:
+def _cf_chart(history: dict, currency: str = "JPY") -> str:
     fy    = history.get("fiscal_years", [])
-    op_cf = _to_oku(history.get("operating_cf", []))
-    fcf   = _to_oku(history.get("free_cf", []))
-    debt  = _to_oku(history.get("interest_bearing_debt", []))
-    cash  = _to_oku(history.get("cash", []))
+    op_cf_raw = history.get("operating_cf", [])
+    fcf_raw   = history.get("free_cf", [])
+    debt_raw  = history.get("interest_bearing_debt", [])
+    cash_raw  = history.get("cash", [])
 
     if not fy:
         return "<p>データなし</p>"
 
+    op_cf, unit = _scale_money(op_cf_raw, currency)
+    fcf,   _    = _scale_money(fcf_raw,   currency)
+    debt,  _    = _scale_money(debt_raw,  currency)
+    cash,  _    = _scale_money(cash_raw,  currency)
+
     fig = make_subplots(
         rows=2, cols=1,
-        subplot_titles=["キャッシュフロー(億円)", "有利子負債 vs 現金(億円)"],
+        subplot_titles=[f"キャッシュフロー({unit})", f"有利子負債 vs 現金({unit})"],
         vertical_spacing=0.18,
     )
     if any(v is not None for v in op_cf):
@@ -336,7 +353,7 @@ def _cf_chart(history: dict) -> str:
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
 
-def _eps_bps_chart(history: dict) -> str:
+def _eps_bps_chart(history: dict, currency: str = "JPY") -> str:
     fy  = history.get("fiscal_years", [])
     eps = history.get("eps", [])
     bps = history.get("bps", [])
@@ -345,20 +362,118 @@ def _eps_bps_chart(history: dict) -> str:
     if not fy:
         return "<p>データなし</p>"
 
+    unit = "円/株" if currency == "JPY" else "USD/share"
     fig = go.Figure()
     if any(v is not None for v in eps):
-        fig.add_trace(go.Bar(x=fy, y=eps, name="EPS(円)", marker_color="#fbbf24", opacity=0.85))
+        fig.add_trace(go.Bar(x=fy, y=eps, name=f"EPS({unit})", marker_color="#fbbf24", opacity=0.85))
     if any(v is not None for v in bps):
-        fig.add_trace(go.Scatter(x=fy, y=bps, name="BPS(円)",
+        fig.add_trace(go.Scatter(x=fy, y=bps, name=f"BPS({unit})",
                                  line=dict(color="#93c5fd", width=2), mode="lines+markers"))
     if any(v is not None for v in dps):
-        fig.add_trace(go.Bar(x=fy, y=dps, name="DPS(円)", marker_color="#a78bfa", opacity=0.7))
+        fig.add_trace(go.Bar(x=fy, y=dps, name=f"DPS({unit})", marker_color="#a78bfa", opacity=0.7))
     fig.update_layout(
         template="plotly_dark", height=320, paper_bgcolor=_BG, plot_bgcolor=_BG_PLOT,
-        title="EPS / BPS / DPS 推移 (円/株)", barmode="group",
+        title=f"EPS / BPS / DPS 推移 ({unit})", barmode="group",
         legend=dict(orientation="h", y=-0.28),
     )
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
+
+
+# ── history table helper ─────────────────────────────────────────────────────
+
+def _hist_table(history: dict, col_defs: list, caption: str = "") -> str:
+    """Render a time-series HTML table from a history dict (oldest→newest).
+
+    col_defs: list of (key, header_label, format_fn)
+    format_fn receives a raw value (float | None) and returns a display string.
+    """
+    years = history.get("fiscal_years", [])
+    if not years:
+        return ""
+
+    th = "".join(f"<th>{lbl}</th>" for _, lbl, _ in col_defs)
+    rows_html = ""
+    for i, yr in enumerate(years):
+        cells = f"<td style='color:#94a3b8;white-space:nowrap'>{yr}</td>"
+        for key, _, fmt_fn in col_defs:
+            vals = history.get(key, [])
+            raw = vals[i] if i < len(vals) else None
+            cells += f"<td>{fmt_fn(raw)}</td>"
+        rows_html += f"<tr>{cells}</tr>"
+
+    cap = f"<p style='font-size:.76em;color:#64748b;margin:4px 0 2px'>{caption}</p>" if caption else ""
+    return (
+        cap
+        + "<div style='overflow-x:auto'>"
+        + "<table style='font-size:.78em;margin:6px 0 18px'>"
+        + f"<thead><tr><th>期</th>{th}</tr></thead>"
+        + f"<tbody>{rows_html}</tbody>"
+        + "</table></div>"
+    )
+
+
+def _build_revenue_table(history: dict, currency: str) -> str:
+    _fmt_m = fmt_jpy if currency == "JPY" else fmt_usd
+    unit = "億円" if currency == "JPY" else "B USD"
+
+    def _pct(v):
+        return pct_already(v) if _v(v) else "—"
+
+    def _mon(v):
+        return _fmt_m(v) if _v(v) else "—"
+
+    cols = [
+        ("revenue",          f"売上高({unit})",   _mon),
+        ("operating_profit", f"営業利益({unit})",  _mon),
+        ("net_income",       f"純利益({unit})",    _mon),
+        ("operating_margin", "営業利益率",         _pct),
+    ]
+    if currency == "JPY":
+        cols.insert(2, ("ordinary_profit", f"経常利益({unit})", _mon))
+
+    return _hist_table(history, cols)
+
+
+def _build_roe_table(history: dict) -> str:
+    def _pct(v):
+        return pct_already(v) if _v(v) else "—"
+
+    return _hist_table(history, [
+        ("roe",          "ROE %",       _pct),
+        ("roa",          "ROA %",       _pct),
+        ("equity_ratio", "自己資本比率 %", _pct),
+    ])
+
+
+def _build_cf_table(history: dict, currency: str) -> str:
+    _fmt_m = fmt_jpy if currency == "JPY" else fmt_usd
+    unit = "億円" if currency == "JPY" else "B USD"
+
+    def _mon(v):
+        return _fmt_m(v) if _v(v) else "—"
+
+    return _hist_table(history, [
+        ("operating_cf",        f"営業CF({unit})",   _mon),
+        ("free_cf",             f"FCF({unit})",       _mon),
+        ("interest_bearing_debt", f"有利子負債({unit})", _mon),
+        ("cash",                f"現金等({unit})",    _mon),
+    ])
+
+
+def _build_eps_table(history: dict, per_share_unit: str) -> str:
+    def _ps(v):
+        if v is None or not _v(v):
+            return "—"
+        return f"{v:.2f}" if per_share_unit != "円/株" else (f"{v:.0f}" if abs(v) >= 10 else f"{v:.2f}")
+
+    cols = [
+        ("eps", f"EPS ({per_share_unit})", _ps),
+        ("bps", f"BPS ({per_share_unit})", _ps),
+    ]
+    if any(v is not None for v in history.get("dps", [])):
+        cols.append(("dps", f"DPS ({per_share_unit})", _ps))
+
+    return _hist_table(history, cols)
 
 
 # ── valuation classification helpers ─────────────────────────────────────────
@@ -433,6 +548,10 @@ def _prep_fund(fm: dict) -> dict | None:
     if not fm:
         return None
 
+    currency = fm.get("currency", "JPY")
+    _fmt_money = fmt_jpy if currency == "JPY" else fmt_usd
+    per_share_unit = "円/株" if currency == "JPY" else "USD/share"
+
     def _get(key):
         return fm.get(key)
 
@@ -445,6 +564,8 @@ def _prep_fund(fm: dict) -> dict | None:
     def _coin(v):
         if v is None or not _v(v):
             return "—"
+        if currency == "USD":
+            return f"{v:.2f}"
         return f"{v:.0f}" if abs(v) >= 10 else f"{v:.2f}"
 
     def _loss_or_x(v):
@@ -476,14 +597,22 @@ def _prep_fund(fm: dict) -> dict | None:
     eq_ratio_v = _get("equity_ratio")
     de_v       = _get("de_ratio")
 
+    shares_fmt = (
+        f"{shares_v / 1e6:.1f}百万株" if (_v(shares_v) and currency == "JPY")
+        else f"{shares_v / 1e6:.1f}M shares" if _v(shares_v)
+        else "—"
+    )
+
     return {
         "fiscal_year":    fm.get("fiscal_year", ""),
         "n_periods":      fm.get("n_periods", 0),
-        "market_cap_fmt": fmt_jpy(_get("market_cap")),
-        "ev_fmt":         fmt_jpy(_get("ev")),
-        "net_debt_fmt":   fmt_jpy(net_debt_v),
+        "currency":       currency,
+        "per_share_unit": per_share_unit,
+        "market_cap_fmt": _fmt_money(_get("market_cap")),
+        "ev_fmt":         _fmt_money(_get("ev")),
+        "net_debt_fmt":   _fmt_money(net_debt_v),
         "net_debt_cls":   _net_debt_cls(net_debt_v),
-        "shares_fmt":     f"{shares_v / 1e6:.1f}百万株" if _v(shares_v) else "—",
+        "shares_fmt":     shares_fmt,
         # Valuation
         "per_fmt":     _loss_or_x(per_v),
         "per_cls":     _per_cls(per_v),
@@ -517,23 +646,28 @@ def _prep_fund(fm: dict) -> dict | None:
         "de_fmt":       fmt_x(de_v, digits=2) if _v(de_v) else "—", "de_cls": _de_cls(de_v),
         "fcf_conv_fmt": fmt_x(_get("fcf_conversion"), digits=2) if _v(_get("fcf_conversion")) else "—",
         "capex_fmt":    pct_already(_get("capex_ratio"), digits=1) if _v(_get("capex_ratio")) else "—",
-        "ibd_fmt":      fmt_jpy(_get("interest_bearing_debt")),
-        "cash_fmt":     fmt_jpy(_get("cash")),
+        "ibd_fmt":      _fmt_money(_get("interest_bearing_debt")),
+        "cash_fmt":     _fmt_money(_get("cash")),
         # Absolute summary
-        "revenue_fmt":    fmt_jpy(_get("revenue")),
-        "op_profit_fmt":  fmt_jpy(_get("operating_profit")),
-        "ord_profit_fmt": fmt_jpy(_get("ordinary_profit")),
-        "net_income_fmt": fmt_jpy(_get("net_income")),
-        "op_cf_fmt":      fmt_jpy(_get("operating_cf")),
-        "free_cf_fmt":    fmt_jpy(_get("free_cf")),
+        "revenue_fmt":    _fmt_money(_get("revenue")),
+        "op_profit_fmt":  _fmt_money(_get("operating_profit")),
+        "ord_profit_fmt": _fmt_money(_get("ordinary_profit")) if currency == "JPY" else None,
+        "net_income_fmt": _fmt_money(_get("net_income")),
+        "op_cf_fmt":      _fmt_money(_get("operating_cf")),
+        "free_cf_fmt":    _fmt_money(_get("free_cf")),
         "eps_fmt":        _coin(eps_raw),
         "bps_fmt":        _coin(bps_raw),
-        "dps_val":        f"{dps_raw:.0f}" if _v(dps_raw) and dps_raw > 0 else None,
+        "dps_val":        f"{dps_raw:.2f}" if (_v(dps_raw) and dps_raw > 0) else None,
         # Charts
-        "revenue_chart": _revenue_chart(history),
+        "revenue_chart": _revenue_chart(history, currency),
         "roe_chart":     _roe_roa_chart(history),
-        "cf_chart":      _cf_chart(history),
-        "eps_chart":     _eps_bps_chart(history),
+        "cf_chart":      _cf_chart(history, currency),
+        "eps_chart":     _eps_bps_chart(history, currency),
+        # History tables
+        "revenue_table": _build_revenue_table(history, currency),
+        "roe_table":     _build_roe_table(history),
+        "cf_table":      _build_cf_table(history, currency),
+        "eps_table":     _build_eps_table(history, per_share_unit),
     }
 
 

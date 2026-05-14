@@ -14,6 +14,7 @@ import pandas as pd
 def compute_fundamental_metrics(
     fund_df: pd.DataFrame,
     current_price: float,
+    currency: str = "JPY",
 ) -> dict:
     """
     Compute full fundamental analysis from IRBank data + latest price.
@@ -125,6 +126,7 @@ def compute_fundamental_metrics(
 
     return {
         # Context
+        "currency":          currency,
         "fiscal_year":       str(latest.get("fiscal_year", "")),
         "n_periods":         n_periods,
         "market_cap":        market_cap,

@@ -3,6 +3,7 @@ import pandas as pd
 from src.config.loader import load_theme_config, get_theme_universe, get_weights, get_benchmark, load_universe
 from src.data.price_loader import download_price_data
 from src.data.irbank_scraper import fetch_fundamentals
+from src.data.yfinance_fundamentals import fetch_us_fundamentals
 from src.factors.factor_table import build_factor_table
 from src.factors.fundamental_valuation import compute_fundamental_metrics
 from src.scoring.scorer import compute_scores
@@ -48,7 +49,11 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
     theme_rank = int(ticker_row["rank"].values[0]) if not ticker_row.empty else None
     ranking_row = ticker_row.iloc[0] if not ticker_row.empty else pd.Series(dtype=float)
 
-    category_rank = None
+    category_rank = (
+        int(ticker_row["region_rank"].values[0])
+        if not ticker_row.empty and "region_rank" in ticker_row.columns
+        else None
+    )
 
     corr_matrix = compute_correlation_matrix(theme_prices)
     top_correlated = get_top_correlated_stocks(corr_matrix, ticker, top_n=5)
@@ -153,14 +158,25 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
 
 
 def _fetch_fundamental_metrics(ticker: str, price_history: pd.DataFrame) -> dict:
-    """Fetch IRBank fundamentals and compute valuation metrics for JP tickers."""
-    if not ticker.endswith(".T") or price_history.empty:
-        return {}
-    fund_df = fetch_fundamentals(ticker, use_cache=True)
-    if fund_df.empty:
+    """Fetch fundamentals and compute valuation metrics.
+
+    JP tickers (.T): IRBank scraper
+    US tickers: yfinance
+    """
+    if price_history.empty:
         return {}
     current_price = float(price_history.sort_values("Date")["Close"].iloc[-1])
-    return compute_fundamental_metrics(fund_df, current_price)
+
+    if ticker.endswith(".T"):
+        fund_df = fetch_fundamentals(ticker, use_cache=True)
+        if fund_df.empty:
+            return {}
+        return compute_fundamental_metrics(fund_df, current_price, currency="JPY")
+
+    fund_df = fetch_us_fundamentals(ticker, use_cache=True)
+    if fund_df.empty:
+        return {}
+    return compute_fundamental_metrics(fund_df, current_price, currency="USD")
 
 
 def _build_summary_metrics(price_history: pd.DataFrame, factor_row: pd.Series) -> pd.DataFrame:

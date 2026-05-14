@@ -94,7 +94,7 @@ _TEMPLATE = """<!DOCTYPE html>
   <div class="leg-item">
     <div class="leg-name">Fundamentals</div>
     <div class="leg-formula">ROE×0.25 + ROA×0.15 + 営利率×0.25 + 売上成長×0.20 + FCFマージン×0.15</div>
-    <div class="leg-desc">IRBank（日本株）から取得した財務指標の複合スコア。米国株はユニバース中央値で補完。</div>
+    <div class="leg-desc">JP株はIRBank、US株はyfinanceから取得。<strong>地域内（JP/US）で独立してランク正規化</strong>（ROE平均がJP 8〜10% / US 15〜20% と構造的に異なるため）。</div>
   </div>
   <div class="leg-item">
     <div class="leg-name">History / Quality</div>
@@ -126,6 +126,16 @@ _TEMPLATE = """<!DOCTYPE html>
 </tr>
 {% endfor %}
 </tbody></table>
+
+<h2>地域別サブランキング</h2>
+<div class="desc" style="font-size:.82em">JP / US それぞれの地域内 Final Score 順。Fundamentals スコアは地域内正規化済み。</div>
+{{ jp_sub_ranking }}
+{{ us_sub_ranking }}
+
+<h2>クロスマーケット バリュエーション比較</h2>
+<div class="desc" style="font-size:.82em">JP株 vs US株の財務指標中央値比較。地域間の相対割安・割高を把握するための参考指標。</div>
+{{ cross_market_chart }}
+{{ cross_market_table }}
 
 <h2>Quantamental Analysis</h2>
 <div class="desc" style="font-size:.82em">
@@ -213,21 +223,145 @@ def _fundamental_table(ranking_df: pd.DataFrame) -> str:
     ]
     rows_html = ""
     for _, r in ranking_df.iterrows():
-        if not str(r.get("Ticker", "")).endswith(".T"):
-            continue
+        country = r.get("country", "")
         cells = "".join(
             f"<td>{ _fmt(r.get(col), 2 if col == 'fundamentals_score' else 1) }</td>"
             for col, _ in fund_cols
         )
-        rows_html += f"<tr><td><strong>{r['Ticker']}</strong></td><td>{r.get('name','')}</td>{cells}</tr>"
+        rows_html += f"<tr><td><strong>{r['Ticker']}</strong></td><td>{r.get('name','')}</td><td>{country}</td>{cells}</tr>"
 
     if not rows_html:
-        return "<p style='color:#94a3b8'>財務データなし（JP銘柄が存在しないか未取得）</p>"
+        return "<p style='color:#94a3b8'>財務データなし</p>"
 
     headers = "".join(f"<th>{label}</th>" for _, label in fund_cols)
     return (
-        "<table><thead><tr><th>Ticker</th><th>Name</th>" + headers + "</tr></thead>"
+        "<table><thead><tr><th>Ticker</th><th>Name</th><th>Country</th>" + headers + "</tr></thead>"
         "<tbody>" + rows_html + "</tbody></table>"
+    )
+
+
+def _sub_ranking_table(ranking_df: pd.DataFrame, region: str) -> str:
+    col = "country" if "country" in ranking_df.columns else "region"
+    sub = ranking_df[ranking_df[col] == region].copy()
+    if sub.empty:
+        return f"<p style='color:#94a3b8'>{region} 銘柄なし</p>"
+
+    sub = sub.sort_values("final_score", ascending=False).reset_index(drop=True)
+    sub["sub_rank"] = range(1, len(sub) + 1)
+
+    label = "🇯🇵 Japan" if region == "JP" else "🇺🇸 United States"
+    rows_html = ""
+    for _, r in sub.iterrows():
+        rows_html += (
+            f"<tr>"
+            f"<td><span class='badge b-rank'>{int(r['sub_rank'])}</span></td>"
+            f"<td><strong>{r['Ticker']}</strong></td>"
+            f"<td>{r.get('name', '')}</td>"
+            f"<td>{'★' * int(r.get('theme_purity', 0))}</td>"
+            f"<td>{_fmt(r.get('final_score'), 3)}</td>"
+            f"<td>{_fmt(r.get('momentum_score'), 3)}</td>"
+            f"<td>{_fmt(r.get('risk_adjusted_return_score'), 3)}</td>"
+            f"<td>{_fmt(r.get('fundamentals_score'), 3)}</td>"
+            f"<td>{_fmt(r.get('fundamental_roe'), 1)}</td>"
+            f"<td>{_fmt(r.get('fundamental_revenue_growth'), 1)}</td>"
+            f"</tr>"
+        )
+    return (
+        f"<h3>{label} ({len(sub)} 銘柄)</h3>"
+        "<table><thead><tr>"
+        "<th>Rank</th><th>Ticker</th><th>Name</th><th>Purity</th>"
+        "<th>Final</th><th>Mom.</th><th>Risk-Adj</th><th>Fund.</th><th>ROE%</th><th>Rev.Growth%</th>"
+        "</tr></thead><tbody>" + rows_html + "</tbody></table>"
+    )
+
+
+def _cross_market_chart(ranking_df: pd.DataFrame) -> str:
+    if "country" not in ranking_df.columns:
+        return ""
+
+    metrics = [
+        ("fundamental_roe",              "ROE %"),
+        ("fundamental_roa",              "ROA %"),
+        ("fundamental_operating_margin", "営業利益率 %"),
+        ("fundamental_revenue_growth",   "売上成長率 %"),
+        ("fundamental_free_cf_margin",   "FCFマージン %"),
+    ]
+    available = [(col, lbl) for col, lbl in metrics if col in ranking_df.columns]
+    if not available:
+        return ""
+
+    jp = ranking_df[ranking_df["country"] == "JP"]
+    us = ranking_df[ranking_df["country"] == "US"]
+
+    labels = [lbl for _, lbl in available]
+    jp_vals = [jp[col].median() for col, _ in available]
+    us_vals = [us[col].median() for col, _ in available]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="🇯🇵 JP 中央値", x=labels, y=jp_vals, marker_color="#3b82f6", opacity=0.85))
+    fig.add_trace(go.Bar(name="🇺🇸 US 中央値", x=labels, y=us_vals, marker_color="#f59e0b", opacity=0.85))
+    fig.update_layout(
+        barmode="group",
+        template="plotly_dark",
+        height=360,
+        paper_bgcolor="#1e293b",
+        plot_bgcolor="#0f172a",
+        title="JP vs US 財務指標中央値比較",
+        legend=dict(orientation="h", y=1.08),
+        yaxis_title="%",
+    )
+    return pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
+
+
+def _cross_market_table(ranking_df: pd.DataFrame) -> str:
+    if "country" not in ranking_df.columns:
+        return ""
+
+    metrics = [
+        ("fundamental_roe",              "ROE %"),
+        ("fundamental_roa",              "ROA %"),
+        ("fundamental_operating_margin", "営業利益率 %"),
+        ("fundamental_revenue_growth",   "売上成長率 %"),
+        ("fundamental_free_cf_margin",   "FCFマージン %"),
+        ("fundamental_capex_ratio",      "設備投資率 %"),
+        ("fundamentals_score",           "Fundamental Score"),
+    ]
+
+    jp = ranking_df[ranking_df["country"] == "JP"]
+    us = ranking_df[ranking_df["country"] == "US"]
+
+    rows_html = ""
+    for col, lbl in metrics:
+        if col not in ranking_df.columns:
+            continue
+        jp_med = jp[col].median()
+        us_med = us[col].median()
+
+        def _cell(v):
+            if v is None or (isinstance(v, float) and np.isnan(v)):
+                return "<td>—</td>"
+            return f"<td>{v:.1f}</td>"
+
+        # Indicate which is higher
+        if not (np.isnan(float(jp_med)) if isinstance(jp_med, float) else False) and \
+           not (np.isnan(float(us_med)) if isinstance(us_med, float) else False):
+            arrow = "↑JP" if jp_med > us_med else "↑US"
+            arrow_color = "#3b82f6" if "JP" in arrow else "#f59e0b"
+            arrow_td = f"<td style='color:{arrow_color};font-weight:700'>{arrow}</td>"
+        else:
+            arrow_td = "<td>—</td>"
+
+        rows_html += (
+            f"<tr><td>{lbl}</td>{_cell(jp_med)}{_cell(us_med)}{arrow_td}</tr>"
+        )
+
+    if not rows_html:
+        return ""
+
+    return (
+        "<table><thead><tr>"
+        "<th>指標</th><th>🇯🇵 JP 中央値</th><th>🇺🇸 US 中央値</th><th>優位</th>"
+        "</tr></thead><tbody>" + rows_html + "</tbody></table>"
     )
 
 
@@ -543,6 +677,10 @@ def generate_theme_html_report(
         n_us=n_us,
         avg_purity=avg_purity,
         rows=ranking_df.to_dict(orient="records"),
+        jp_sub_ranking=_sub_ranking_table(ranking_df, "JP"),
+        us_sub_ranking=_sub_ranking_table(ranking_df, "US"),
+        cross_market_chart=_cross_market_chart(ranking_df),
+        cross_market_table=_cross_market_table(ranking_df),
         quant_scatter=_quantamental_scatter(ranking_df),
         fundamental_bar=_fundamental_bar_chart(ranking_df),
         fundamental_table=_fundamental_table(ranking_df),
