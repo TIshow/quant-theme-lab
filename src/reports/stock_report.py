@@ -85,6 +85,16 @@ _TEMPLATE = """<!DOCTYPE html>
 <div class="chart">{{ vol_chart }}</div>
 
 <h2>価格系メトリクス</h2>
+<div class="desc" style="font-size:.80em;line-height:1.7">
+  <strong>リターン (1M/3M/6M/12M)</strong>: 各期間の株価騰落率。プラスが上昇、マイナスが下落。<br>
+  <strong>年率ボラティリティ</strong>: 日次リターンのブレ幅を年率換算。大きいほど値動きが荒い。<br>
+  <strong>最大DD (ドローダウン)</strong>: 期間中の高値から最大で何%下落したか。損失リスクの目安。<br>
+  <strong>Sharpe</strong>: リスク1単位あたりの超過リターン。高いほど効率的。0.5↑許容・1.0↑優良・2.0↑卓越。マイナスは現金以下。<br>
+  <strong>Sortino</strong>: Sharpeの変種で下落リスクのみ考慮。SortinoがSharpeより高いほど「上昇方向への偏り大」。<br>
+  <strong>Calmar</strong>: 年率リターン ÷ 最大DD。1.0↑が合格ライン。大きいほど引き戻しリスクに対するリターンが高い。<br>
+  <strong>52W高値比 / 安値比</strong>: 直近1年の高値・安値を基準とした現在値の位置。高値比がマイナスなら高値から下落中、安値比がプラスなら底から回復中。<br>
+  <strong>MA50比 / MA200比</strong>: 50日・200日移動平均線からの乖離率。プラスで上方、マイナスで下方に位置。トレンド確認に使う。
+</div>
 <div class="grid">
 {% for m in metrics %}
 <div class="card"><div class="lbl">{{ m.label }}</div><div class="val {{ m.cls }}">{{ m.value }}</div></div>
