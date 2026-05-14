@@ -84,6 +84,13 @@ _TEMPLATE = """<!DOCTYPE html>
 <h2>出来高・売買代金</h2>
 <div class="chart">{{ vol_chart }}</div>
 
+<h2>出来高ダイナミクス</h2>
+<p class="section-note">
+  <strong>RVOL (20D/60D)</strong>: 直近20日平均出来高 ÷ 60日基準出来高。1.0超 = 市場関心が高まっている。価格上昇と同時に高い場合は確信度の高い買い。<br>
+  <strong>価格出来高アライメント</strong>: 株価変化と出来高変化の20日ローリング相関。プラス=上昇時に出来高増（買い集め）、マイナス=下落時に出来高増（分配・売り圧力）。
+</p>
+<div class="chart">{{ volume_dynamics_chart }}</div>
+
 <h2>価格系メトリクス</h2>
 <div class="desc" style="font-size:.80em;line-height:1.7">
   <strong>リターン (1M/3M/6M/12M)</strong>: 各期間の株価騰落率。プラスが上昇、マイナスが下落。<br>
@@ -241,6 +248,86 @@ def _vol_chart(dates, volumes, traded_values, ticker) -> str:
         fig.add_trace(go.Bar(x=dates, y=traded_values, name="Traded Value", marker_color="#8b5cf6"), row=2, col=1)
     fig.update_layout(template="plotly_dark", height=460, paper_bgcolor=_BG, plot_bgcolor=_BG_PLOT, showlegend=False)
     return pio.to_html(fig, include_plotlyjs="cdn", full_html=False)
+
+
+def _volume_dynamics_chart(price_history: pd.DataFrame) -> str:
+    """3-panel: colour-coded volume bars + rolling RVOL / rolling price-volume alignment."""
+    if price_history.empty or "Volume" not in price_history.columns:
+        return "<p>データなし</p>"
+
+    g = price_history.sort_values("Date").copy()
+    g["daily_return"] = g["Close"].pct_change()
+    g["volume_change"] = g["Volume"].pct_change()
+
+    vol_20 = g["Volume"].rolling(20, min_periods=15).mean()
+    vol_60 = g["Volume"].rolling(60, min_periods=45).mean()
+    g["rvol"] = (vol_20 / vol_60).where(vol_60 > 0)
+
+    g["pv_align"] = (
+        g["daily_return"].rolling(20, min_periods=10)
+        .corr(g["volume_change"])
+    )
+
+    dates = g["Date"].astype(str).tolist()
+    bar_colors = [
+        "#4ade80" if (not np.isnan(r) and r >= 0) else "#f87171"
+        for r in g["daily_return"].fillna(0)
+    ]
+    align_colors = [
+        "#4ade80" if (v is not None and not (isinstance(v, float) and np.isnan(v)) and v >= 0)
+        else "#f87171"
+        for v in g["pv_align"].tolist()
+    ]
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=["出来高（色: 上昇日=緑 / 下落日=赤） + RVOL (右軸)",
+                        "価格出来高アライメント — 20日ローリング相関"],
+        vertical_spacing=0.18,
+        specs=[[{"secondary_y": True}], [{"secondary_y": False}]],
+    )
+
+    fig.add_trace(
+        go.Bar(x=dates, y=g["Volume"].tolist(), name="出来高",
+               marker_color=bar_colors, opacity=0.65, showlegend=False),
+        row=1, col=1, secondary_y=False,
+    )
+    fig.add_trace(
+        go.Scatter(x=dates, y=g["rvol"].tolist(), name="RVOL (20D/60D)",
+                   line=dict(color="#fbbf24", width=2), mode="lines"),
+        row=1, col=1, secondary_y=True,
+    )
+    # RVOL reference at 1.0
+    fig.add_trace(
+        go.Scatter(x=[dates[0], dates[-1]], y=[1.0, 1.0],
+                   line=dict(color="#64748b", dash="dot", width=1),
+                   showlegend=False, mode="lines"),
+        row=1, col=1, secondary_y=True,
+    )
+
+    fig.add_trace(
+        go.Bar(x=dates, y=g["pv_align"].tolist(), name="PV Alignment",
+               marker_color=align_colors, opacity=0.75),
+        row=2, col=1,
+    )
+    # Alignment reference at 0
+    fig.add_trace(
+        go.Scatter(x=[dates[0], dates[-1]], y=[0.0, 0.0],
+                   line=dict(color="#64748b", dash="dot", width=1),
+                   showlegend=False, mode="lines"),
+        row=2, col=1,
+    )
+
+    fig.update_layout(
+        template="plotly_dark", height=560, paper_bgcolor=_BG, plot_bgcolor=_BG_PLOT,
+        title="出来高ダイナミクス",
+        legend=dict(orientation="h", y=-0.10),
+    )
+    fig.update_yaxes(title_text="出来高", secondary_y=False, row=1, col=1)
+    fig.update_yaxes(title_text="RVOL", secondary_y=True, row=1, col=1)
+    fig.update_yaxes(title_text="相関係数 (−1〜1)", row=2, col=1)
+
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
 
 # ── fundamental charts (reuse existing plotlyjs from price chart) ─────────────
@@ -717,6 +804,16 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
         metric("MA200比",     _pct(m.get("distance_from_ma_200")),   _cls(m.get("distance_from_ma_200"))),
         metric("平均売買代金 3M",
                f"{m.get('avg_traded_value_3m', 0):,.0f}" if m.get("avg_traded_value_3m") else "N/A"),
+        metric("RVOL (20D/60D)",
+               _f(m.get("rvol_20_60")),
+               "pos" if (m.get("rvol_20_60") or 0) >= 1.2
+               else "neg" if (m.get("rvol_20_60") or 0) < 0.8 and m.get("rvol_20_60") is not None
+               else "neutral"),
+        metric("PV Alignment",
+               _f(m.get("price_volume_alignment")),
+               "pos" if (m.get("price_volume_alignment") or 0) >= 0.3
+               else "neg" if (m.get("price_volume_alignment") or 0) < -0.3 and m.get("price_volume_alignment") is not None
+               else "neutral"),
     ]
 
     rr = data.get("ranking_row", pd.Series(dtype=float))
@@ -724,6 +821,7 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
         ("Final Score",     "final_score"),
         ("Momentum",        "momentum_score"),
         ("Risk-Adj Return", "risk_adjusted_return_score"),
+        ("Volume",          "volume_score"),
         ("Liquidity",       "liquidity_score"),
         ("Volatility",      "volatility_score"),
         ("Drawdown",        "drawdown_score"),
@@ -766,6 +864,8 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
         vol_chart=_vol_chart(
             data.get("chart_dates", []), data.get("chart_volumes", []),
             data.get("chart_traded_values", []), ticker),
+        volume_dynamics_chart=_volume_dynamics_chart(
+            data.get("price_history", pd.DataFrame())),
         metrics=key_metrics,
         bm=bm,
         top_corr=top_corr,

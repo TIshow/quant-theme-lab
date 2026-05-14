@@ -187,6 +187,7 @@ def _build_summary_metrics(price_history: pd.DataFrame, factor_row: pd.Series) -
         "distance_from_ma_50", "distance_from_ma_200",
         "distance_from_52w_high", "distance_from_52w_low",
         "avg_traded_value_3m",
+        "rvol_20_60", "price_volume_alignment",
     ]
     row = {f: factor_row.get(f, np.nan) if hasattr(factor_row, "get") else np.nan for f in fields}
     return pd.DataFrame([row])
