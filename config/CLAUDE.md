@@ -5,6 +5,7 @@
 ```
 config/
   universe.yaml          # 全銘柄マスターレジストリ（変更頻度：低）
+  market_params.yaml     # JP/US 10年債金利（手動管理、Sharpe rf に使用）
   themes/
     battery_storage.yaml # テーマパラメータ（変更頻度：中）
     semiconductor.yaml
@@ -55,12 +56,17 @@ analysis:
   top_n_backtest: 5         # バックテストで保有する上位N銘柄
 
 weights:                    # ファクタースコアの重み（合計=1.0）
-  momentum: 0.25
+  momentum: 0.23
   volatility: 0.10
   drawdown: 0.10
-  liquidity: 0.10
-  theme_purity: 0.20
-  risk_adjusted_return: 0.25
+  liquidity: 0.08
+  theme_purity: 0.18
+  risk_adjusted_return: 0.23
+  volume: 0.08          # 出来高ファクター（新規）
+
+volume_weights:         # volume_score 内の内訳（合計=1.0）
+  rvol_20_60: 0.60      # 直近20D/60D 出来高比率
+  price_volume_alignment: 0.40  # 価格・出来高方向の一致度
 
 momentum_weights:           # momentum_score 内の内訳（合計=1.0）
   return_1m: 0.20
@@ -85,3 +91,15 @@ backtest:
 # 3. 動作確認
 pnpm run pipeline -- --theme robotics
 ```
+
+## market_params.yaml
+
+Sharpe・Sortino の超過リターン計算に使う無リスク金利を手動管理するファイル。
+コードから自動更新されることはない。金利が大きく動いたときだけ手動で編集する。
+
+| キー | 意味 |
+|---|---|
+| `risk_free_rates.JP.rate` | JGB 10年利回り（小数。例: 0.015 = 1.5%） |
+| `risk_free_rates.US.rate` | UST 10年利回り（小数。例: 0.044 = 4.4%） |
+
+コード側の読み込み: `src/config/loader.py` の `get_risk_free_rate(country)` 参照。

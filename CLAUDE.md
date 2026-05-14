@@ -56,6 +56,8 @@ Layer 3: analyze_stock.py    「その銘柄を深掘りする」 → 個別銘�
 
 **スコアリング**: z-score ではなくランク正規化 + ウィンソライズ（5%/95%）を使用
 → `src/scoring/scorer.py:rank_normalize()`
+→ `compute_scores_by_region()` で JP/US のファンダメンタルズを独立正規化
+→ `volume_score` を追加（rvol_20_60, price_volume_alignment の加重合成）
 
 **バックテスト**: 取引コスト（片道bps）+ 実行ラグ（1日）を必ず含める
 → `src/backtest/simple_backtest.py`
@@ -65,14 +67,17 @@ Layer 3: analyze_stock.py    「その銘柄を深掘りする」 → 個別銘�
 ```
 config/
   universe.yaml          # 全銘柄マスター（multi-theme membership）
+  market_params.yaml     # JP/US 10年債金利（手動管理、Sharpe rf に使用）
   themes/                # テーマごとのパラメータYAML
 
 src/
-  config/loader.py       # YAML読み込み、テーマフィルタリング
+  config/loader.py       # YAML読み込み、テーマフィルタリング、load_market_params(), get_risk_free_rate()
   data/price_loader.py   # yfinance価格取得
+  data/yfinance_fundamentals.py  # US 銘柄の財務データ（yfinance）
   factors/               # 個別ファクター計算（returns, vol, drawdown, liquidity, risk, ma）
   factors/factor_table.py # ファクターを統合して1テーブルに
-  scoring/scorer.py      # rank_normalize + compute_scores
+  factors/volume.py      # 出来高ファクター（rvol_20_60, price_volume_alignment）
+  scoring/scorer.py      # rank_normalize + compute_scores + compute_scores_by_region() + volume_score
   scoring/ranking.py     # final_score でランキング生成
   analytics/
     correlation.py       # 相関行列
@@ -119,7 +124,6 @@ data/reports/universe/theme_comparison_report.html
 
 ## 将来フェーズ（未実装）
 
-- Phase 2: 財務データ（ROE, FCF, EV/EBITDA 等）
 - Phase 3: テーマ固有KPI（BESS受注MWh 等）
 - Phase 4: ニュース・イベント分析
 - Phase 5: 機械学習（IC-weighted, LightGBM, walk-forward）

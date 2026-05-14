@@ -32,12 +32,14 @@ if not higher_is_better:
 
 ```
 final_score =
-  momentum_score              × 0.25
-  volatility_score（低=良）  × 0.10
-  drawdown_score（低=良）    × 0.10
-  liquidity_score             × 0.10
-  theme_purity_score          × 0.20
-  risk_adjusted_return_score  × 0.25
+  momentum_score              × 0.18
+  volatility_score（低=良）  × 0.08
+  drawdown_score（低=良）    × 0.08
+  liquidity_score             × 0.06
+  volume_score                × 0.06
+  theme_purity_score          × 0.17
+  risk_adjusted_return_score  × 0.22
+  fundamentals_score          × 0.15
 ```
 
 ### momentum_score の内訳（momentum_weights）
@@ -46,11 +48,26 @@ return_1m × 0.20 + return_3m × 0.50 + return_6m × 0.30
 ```
 → 合成後に rank_normalize
 
+### volume_score の内訳（volume_weights）
+```
+rvol_20_60 × 0.60 + price_volume_alignment × 0.40
+```
+→ 合成後に rank_normalize
+
 ### risk_adjusted_return_score の内訳（risk_adjusted_return_weights）
 ```
 sharpe_6m × 0.40 + sharpe_12m × 0.40 + calmar_12m × 0.20
 ```
 → 合成後に rank_normalize
+
+### ファンダメンタルズの正規化
+
+`fundamentals_score` は `compute_scores_by_region()` により JP/US 内で独立してランク正規化される。JP の ROE 平均 8〜10% と US の 15〜20% という構造差を補正するため。
+
+### 無リスク金利
+
+Sharpe の rf は `config/market_params.yaml` から読み込む（JP: JGB 10年、US: UST 10年）。
+コード側: `src/config/loader.py` の `get_risk_free_rate(country)` を参照。
 
 ## 欠損値の扱い
 

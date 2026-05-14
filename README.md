@@ -22,6 +22,7 @@ Layer 3  analyze_stock.py   個別銘柄深掘り（全テーマでの位置づ�
 - **config/universe.yaml** が全銘柄のマスターレジストリ。
 - **config/themes/*.yaml** はパラメータのみ（ユニバース定義を持たない）。
 - スコアリングは **ランク正規化 + ウィンソライズ**（z-scoreより外れ値に頑健）。
+- ファンダメンタルズスコアは **JP/US を独立して正規化**（構造的な ROE 水準差を補正）。
 - バックテストは **取引コスト（片道bps）+ 実行ラグ** を含む。
 
 ---
@@ -32,10 +33,10 @@ Layer 3  analyze_stock.py   個別銘柄深掘り（全テーマでの位置づ�
 # asdf でPythonバージョンを設定（.tool-versionsを参照）
 asdf install
 
-# 依存ライブラリをインストール
-pip install -r requirements.txt
+# Python依存ライブラリをインストール（uv経由）
+pnpm run setup
 
-# pnpm（HTML整形ツール）
+# pnpm（prettier等JS依存）
 pnpm install
 ```
 
@@ -81,6 +82,7 @@ pnpm run analyze --theme semiconductor --ticker NVDA
 
 # スタンドアロン（テーマ指定なし）
 pnpm run analyze --ticker TSLA
+pnpm run analyze --ticker 6758.T
 ```
 
 出力:
@@ -98,10 +100,10 @@ from src.analytics.factor_validation import validate_all_factors
 prices = download_price_data(["NVDA","TSLA","LMT"], start_date="2022-01-01")
 result = validate_all_factors(prices)
 print(result)
-# factor  | mean_ic | icir  | usable
-# --------|---------|-------|-------
-# sharpe  |  0.18   | 0.45  | True
-# return_3m| 0.12   | 0.31  | True
+# factor   | mean_ic | icir  | usable
+# ---------|---------|-------|-------
+# sharpe   |  0.18   | 0.45  | True
+# return_3m|  0.12   | 0.31  | True
 # ...
 ```
 
@@ -134,19 +136,46 @@ analysis:
   min_theme_purity: 2
   top_n_backtest: 5
 weights:
-  momentum: 0.25
+  momentum: 0.23
   volatility: 0.10
   drawdown: 0.10
-  liquidity: 0.10
-  theme_purity: 0.20
-  risk_adjusted_return: 0.25
-...
+  liquidity: 0.08
+  theme_purity: 0.18
+  risk_adjusted_return: 0.23
+  volume: 0.08
+volume_weights:
+  rvol_20_60: 0.60
+  price_volume_alignment: 0.40
 ```
 
 3. 実行:
 
 ```bash
-python run_pipeline.py --theme robotics
+pnpm run pipeline --theme robotics
+```
+
+---
+
+## 設定ファイル
+
+| ファイル | 役割 | 更新頻度 |
+|---|---|---|
+| `config/universe.yaml` | 全銘柄マスターレジストリ | 銘柄追加時 |
+| `config/themes/*.yaml` | テーマ別パラメータ（重み・バックテスト設定） | 必要時 |
+| `config/market_params.yaml` | JP/US 国債利回り（Sharpe rf に使用） | 金利が大きく動いたとき |
+
+### market_params.yaml の更新方法
+
+Sharpe・Sortino の超過リターン基準となる無リスク金利を手動管理します。FRB・日銀の政策変更など金利が 0.5% 以上動いたときに更新してください。
+
+```yaml
+risk_free_rates:
+  JP:
+    rate: 0.015      # JGB 10年 → https://www.mof.go.jp/jgbs/reference/interest_rate/
+    instrument: "JGB 10Y"
+  US:
+    rate: 0.044      # UST 10年 → https://home.treasury.gov/resource-center/data-chart-center/interest-rates
+    instrument: "UST 10Y"
 ```
 
 ---
@@ -154,32 +183,34 @@ python run_pipeline.py --theme robotics
 ## テスト
 
 ```bash
-pytest tests/ -v
+pnpm run test
 ```
 
 ---
 
-## v0.1 でできること
+## 機能一覧
 
 | 機能 | 状態 |
 |---|---|
 | テーマ横断比較（どのテーマが強いか） | ✅ |
 | テーマ内ランキング（ランク正規化スコア） | ✅ |
+| JP/US 地域別サブランキング | ✅ |
+| 出来高ファクター（RVOL・価格出来高アライメント） | ✅ |
 | 相関行列・クラスタリング | ✅ |
 | バックテスト（取引コスト・実行ラグ付き） | ✅ |
 | Walk-forward 検証 | ✅ |
 | ファクター検証（IC/ICIR） | ✅ |
 | リスクモデル（Ledoit-Wolf 共分散） | ✅ |
 | 個別銘柄分析（全テーマ位置づけ付き） | ✅ |
+| 財務分析（JP: IRBank / US: yfinance） | ✅ |
+| 出来高ダイナミクス可視化（個別株レポート） | ✅ |
 | HTMLレポート（3種） | ✅ |
 | データ品質フラグ | ✅ |
+| 実態金利を使った Sharpe（market_params.yaml） | ✅ |
 
 ---
 
 ## 今後の拡張予定
-
-### Phase 2: 財務データ
-売上成長率・営業利益率・ROE・ROIC・FCF・EV/EBITDA・PER・PBR
 
 ### Phase 3: テーマ固有KPI（蓄電池例）
 BESS受注MWh・納入MWh・補助金採択件数・現金残高・希薄化リスク
@@ -194,8 +225,12 @@ IC-weighted factor combination・LightGBM・Walk-forward validation・Feature im
 
 ## データソース
 
-- 価格データ: Yahoo Finance (yfinance)
-- 設定: `config/universe.yaml`, `config/themes/*.yaml`
+| データ | ソース |
+|---|---|
+| 価格データ | Yahoo Finance (yfinance) |
+| 日本株 財務データ | IRBank (スクレイピング) |
+| 米国株 財務データ | Yahoo Finance (yfinance) |
+| 無リスク金利 | `config/market_params.yaml`（手動管理） |
 
 ## 免責事項
 
