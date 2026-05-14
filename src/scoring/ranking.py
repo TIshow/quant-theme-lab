@@ -3,7 +3,7 @@ import pandas as pd
 _ORDERED_COLS = [
     "rank", "region_rank", "Ticker", "name", "country", "sector", "theme_purity",
     "final_score", "momentum_score", "risk_adjusted_return_score",
-    "liquidity_score", "volatility_score", "drawdown_score",
+    "liquidity_score", "volume_score", "volatility_score", "drawdown_score",
     "fundamentals_score", "theme_purity_score",
     "fundamental_roe", "fundamental_roa", "fundamental_operating_margin",
     "fundamental_revenue_growth", "fundamental_free_cf_margin",

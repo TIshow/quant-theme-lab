@@ -70,6 +70,13 @@ def compute_scores(
     else:
         df["fundamentals_score"] = pd.Series(0.5, index=df.index)
 
+    vw = config.get("volume_weights", {"rvol_20_60": 0.6, "price_volume_alignment": 0.4})
+    raw_volume = (
+        _col(df, "rvol_20_60").fillna(_col(df, "rvol_20_60").median()) * vw.get("rvol_20_60", 0.6)
+        + _col(df, "price_volume_alignment").fillna(_col(df, "price_volume_alignment").median()) * vw.get("price_volume_alignment", 0.4)
+    )
+    df["volume_score"] = rank_normalize(raw_volume, higher_is_better=True)
+
     df["final_score"] = (
         df["momentum_score"] * weights.get("momentum", 0.20)
         + df["volatility_score"] * weights.get("volatility", 0.08)
@@ -78,6 +85,7 @@ def compute_scores(
         + df["theme_purity_score"] * weights.get("theme_purity", 0.18)
         + df["risk_adjusted_return_score"] * weights.get("risk_adjusted_return", 0.23)
         + df["fundamentals_score"] * weights.get("fundamentals", 0.15)
+        + df["volume_score"] * weights.get("volume", 0.00)
     )
     return df
 
@@ -151,6 +159,13 @@ def compute_scores_by_region(
     else:
         df["fundamentals_score"] = pd.Series(0.5, index=df.index)
 
+    vw = config.get("volume_weights", {"rvol_20_60": 0.6, "price_volume_alignment": 0.4})
+    raw_volume = (
+        _col(df, "rvol_20_60").fillna(_col(df, "rvol_20_60").median()) * vw.get("rvol_20_60", 0.6)
+        + _col(df, "price_volume_alignment").fillna(_col(df, "price_volume_alignment").median()) * vw.get("price_volume_alignment", 0.4)
+    )
+    df["volume_score"] = rank_normalize(raw_volume, higher_is_better=True)
+
     df["final_score"] = (
         df["momentum_score"] * weights.get("momentum", 0.20)
         + df["volatility_score"] * weights.get("volatility", 0.08)
@@ -159,5 +174,6 @@ def compute_scores_by_region(
         + df["theme_purity_score"] * weights.get("theme_purity", 0.18)
         + df["risk_adjusted_return_score"] * weights.get("risk_adjusted_return", 0.23)
         + df["fundamentals_score"] * weights.get("fundamentals", 0.15)
+        + df["volume_score"] * weights.get("volume", 0.00)
     )
     return df

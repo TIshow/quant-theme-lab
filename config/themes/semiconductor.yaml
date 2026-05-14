@@ -15,12 +15,17 @@ analysis:
   top_n_backtest: 5
 
 weights:
-  momentum: 0.25
+  momentum: 0.23
   volatility: 0.10
   drawdown: 0.10
-  liquidity: 0.10
-  theme_purity: 0.20
-  risk_adjusted_return: 0.25
+  liquidity: 0.08
+  theme_purity: 0.18
+  risk_adjusted_return: 0.23
+  volume: 0.08
+
+volume_weights:
+  rvol_20_60: 0.60
+  price_volume_alignment: 0.40
 
 momentum_weights:
   return_1m: 0.20

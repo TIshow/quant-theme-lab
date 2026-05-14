@@ -58,8 +58,8 @@ _TEMPLATE = """<!DOCTYPE html>
 <div class="legend">
   <div class="leg-item">
     <div class="leg-name">Final Score</div>
-    <div class="leg-formula">Momentum×0.20 + Risk-Adj×0.23 + Fundamentals×0.15 + Purity×0.18 + Vola×0.08 + DD×0.08 + Liquidity×0.08</div>
-    <div class="leg-desc">各指標について「ユニバース内で何番目か」をランク付けし 0〜1 に変換したうえで重み付き合計。1.0 = ユニバース内で全指標トップ。</div>
+    <div class="leg-formula">Momentum×w + Risk-Adj×w + Fundamentals×w + Volume×w + Purity×w + Vola×w + DD×w + Liquidity×w</div>
+    <div class="leg-desc">各指標について「ユニバース内で何番目か」をランク付けし 0〜1 に変換したうえで重み付き合計。重みはテーマYAMLで設定。1.0 = ユニバース内で全指標トップ。</div>
   </div>
   <div class="leg-item">
     <div class="leg-name">Momentum</div>
@@ -75,6 +75,11 @@ _TEMPLATE = """<!DOCTYPE html>
     <div class="leg-name">Liquidity</div>
     <div class="leg-formula">avg(Volume) — 直近3M</div>
     <div class="leg-desc">平均出来高（3ヶ月）。株価に依存しない純粋な取引活発度。高いほどスコア高。</div>
+  </div>
+  <div class="leg-item">
+    <div class="leg-name">Volume</div>
+    <div class="leg-formula">RVOL×0.6 + Price-Vol Align×0.4</div>
+    <div class="leg-desc">RVOL = 直近20D平均出来高 / 60D平均出来高（最近の市場関心の高まり）。Price-Vol Alignment = 株価変化と出来高変化の相関（正 = 上昇時に出来高増 / 買い集め）。</div>
   </div>
   <div class="leg-item">
     <div class="leg-name">Vola</div>
@@ -104,7 +109,7 @@ _TEMPLATE = """<!DOCTYPE html>
 </div>
 <table>
 <thead><tr><th>Rank</th><th>Ticker</th><th>Name</th><th>Country</th><th>Purity</th>
-<th>Final Score</th><th>Momentum</th><th>Risk-Adj</th><th>Fundamentals</th><th>Liquidity</th><th>Vola</th><th>DD</th>
+<th>Final Score</th><th>Momentum</th><th>Risk-Adj</th><th>Fundamentals</th><th>Volume</th><th>Liquidity</th><th>Vola</th><th>DD</th>
 <th>History</th><th>Quality</th></tr></thead>
 <tbody>
 {% for r in rows %}
@@ -118,6 +123,7 @@ _TEMPLATE = """<!DOCTYPE html>
 <td>{{ '%.3f'|format(r.get('momentum_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('risk_adjusted_return_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('fundamentals_score',0) or 0) }}</td>
+<td>{{ '%.3f'|format(r.get('volume_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('liquidity_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('volatility_score',0) or 0) }}</td>
 <td>{{ '%.3f'|format(r.get('drawdown_score',0) or 0) }}</td>
@@ -262,6 +268,7 @@ def _sub_ranking_table(ranking_df: pd.DataFrame, region: str) -> str:
             f"<td>{_fmt(r.get('momentum_score'), 3)}</td>"
             f"<td>{_fmt(r.get('risk_adjusted_return_score'), 3)}</td>"
             f"<td>{_fmt(r.get('fundamentals_score'), 3)}</td>"
+            f"<td>{_fmt(r.get('volume_score'), 3)}</td>"
             f"<td>{_fmt(r.get('fundamental_roe'), 1)}</td>"
             f"<td>{_fmt(r.get('fundamental_revenue_growth'), 1)}</td>"
             f"</tr>"
@@ -270,7 +277,7 @@ def _sub_ranking_table(ranking_df: pd.DataFrame, region: str) -> str:
         f"<h3>{label} ({len(sub)} 銘柄)</h3>"
         "<table><thead><tr>"
         "<th>Rank</th><th>Ticker</th><th>Name</th><th>Purity</th>"
-        "<th>Final</th><th>Mom.</th><th>Risk-Adj</th><th>Fund.</th><th>ROE%</th><th>Rev.Growth%</th>"
+        "<th>Final</th><th>Mom.</th><th>Risk-Adj</th><th>Fund.</th><th>Volume</th><th>ROE%</th><th>Rev.Growth%</th>"
         "</tr></thead><tbody>" + rows_html + "</tbody></table>"
     )
 

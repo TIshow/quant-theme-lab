@@ -5,6 +5,7 @@ from src.factors.drawdown import compute_max_drawdown
 from src.factors.liquidity import compute_liquidity
 from src.factors.risk import compute_risk_metrics
 from src.factors.moving_average import compute_moving_average_features
+from src.factors.volume import compute_volume_factors
 from src.factors.fundamentals import compute_fundamental_factors
 
 
@@ -38,6 +39,7 @@ def build_factor_table(
         compute_liquidity(prices),
         compute_risk_metrics(prices, rf_annual=config.get("backtest", {}).get("risk_free_rate_annual", 0.0) if config else 0.0),
         compute_moving_average_features(prices),
+        compute_volume_factors(prices),
         compute_fundamental_factors(tickers, config=config, theme=theme, fundamentals_data=fundamentals_data),
     ]
 
