@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from src.config.loader import load_theme_config, get_theme_universe, get_weights, get_benchmark, load_universe
+from src.config.loader import load_theme_config, get_theme_universe, get_weights, get_benchmark, load_universe, get_risk_free_rate
 from src.data.price_loader import download_price_data
 from src.data.irbank_scraper import fetch_fundamentals
 from src.data.yfinance_fundamentals import fetch_us_fundamentals
@@ -86,6 +86,8 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
     }
 
     fundamental_metrics = _fetch_fundamental_metrics(ticker, price_history)
+    country = "JP" if ticker.endswith(".T") else "US"
+    rf = config.get("backtest", {}).get("risk_free_rate_annual") or get_risk_free_rate(country)
 
     return {
         "ticker": ticker,
@@ -102,18 +104,23 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
         "top_correlated": top_correlated,
         "price_history": price_history,
         "benchmark_metrics": benchmark_metrics,
+        "risk_free_rate": rf,
         "data_quality": data_quality,
     }
 
 
 def _analyze_standalone(ticker: str, start_date: str) -> dict:
-    benchmark_ticker = "SPY"
+    country = "JP" if ticker.endswith(".T") else "US"
+    benchmark_ticker = "1306.T" if country == "JP" else "SPY"
+    rf = get_risk_free_rate(country)
+
     prices = download_price_data([ticker, benchmark_ticker], start_date=start_date)
     price_history = prices[prices["Ticker"] == ticker].sort_values("Date").copy()
     if price_history.empty:
         raise ValueError(f"No data for {ticker}")
 
-    factor_df = build_factor_table(price_history)
+    rf_config = {"backtest": {"risk_free_rate_annual": rf}}
+    factor_df = build_factor_table(price_history, config=rf_config)
     factor_row = factor_df.iloc[0] if not factor_df.empty else pd.Series(dtype=float)
     summary_metrics = _build_summary_metrics(price_history, factor_row)
 
@@ -150,6 +157,7 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
         "top_correlated": pd.DataFrame(),
         "price_history": price_history,
         "benchmark_metrics": benchmark_metrics,
+        "risk_free_rate": rf,
         "data_quality": {
             "available_history_days": n,
             "data_quality_flag": "OK" if n >= 252 else "LIMITED_HISTORY" if n >= 120 else "VERY_SHORT_HISTORY",

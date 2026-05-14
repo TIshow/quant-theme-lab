@@ -2,6 +2,9 @@ from pathlib import Path
 import yaml
 import pandas as pd
 
+_MARKET_PARAMS_PATH = Path("config/market_params.yaml")
+_DEFAULT_RF = {"JP": 0.015, "US": 0.044}
+
 
 def load_theme_config(theme_name: str, config_dir: str = "config/themes") -> dict:
     path = Path(config_dir) / f"{theme_name}.yaml"
@@ -57,3 +60,23 @@ def get_benchmark(config: dict, country: str | None = None) -> str:
 
 def list_available_themes(config_dir: str = "config/themes") -> list[str]:
     return [p.stem for p in Path(config_dir).glob("*.yaml")]
+
+
+def load_market_params(path: Path = _MARKET_PARAMS_PATH) -> dict:
+    """Load manually-maintained market parameters (risk-free rates etc.)."""
+    if not path.exists():
+        return {"risk_free_rates": {k: {"rate": v} for k, v in _DEFAULT_RF.items()}}
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def get_risk_free_rate(country: str, path: Path = _MARKET_PARAMS_PATH) -> float:
+    """Return annual risk-free rate for the given country ('JP' or 'US').
+
+    Reads from config/market_params.yaml. Falls back to hardcoded defaults
+    if the file is missing or the country key is absent.
+    """
+    params = load_market_params(path)
+    rates = params.get("risk_free_rates", {})
+    entry = rates.get(country.upper(), rates.get("US", {}))
+    return float(entry.get("rate", _DEFAULT_RF.get(country.upper(), 0.04)))

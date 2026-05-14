@@ -1,0 +1,18 @@
+# Market Parameters — 手動管理ファイル
+#
+# ここに記載した無リスク金利は Sharpe / Sortino 計算の rf（超過リターン基準）として使われます。
+# 金利が大きく動いたタイミング（FRB・日銀の政策変更など）で手動で更新してください。
+#
+# 参照先:
+#   US: https://home.treasury.gov/resource-center/data-chart-center/interest-rates
+#   JP: https://www.mof.go.jp/jgbs/reference/interest_rate/index.htm
+#
+# last_updated: 2026-05-14
+
+risk_free_rates:
+  JP:
+    rate: 0.015          # 日本国債 10年  （例: 1.5%）
+    instrument: "JGB 10Y"
+  US:
+    rate: 0.044          # 米国債 10年    （例: 4.4%）
+    instrument: "UST 10Y"
