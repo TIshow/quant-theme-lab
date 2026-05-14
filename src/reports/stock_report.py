@@ -639,6 +639,18 @@ def _net_debt_cls(v) -> str:
     return "neg" if v > 0 else "pos"
 
 
+def _rvol_cls(v) -> str:
+    if not _v(v):
+        return ""
+    return "pos" if v >= 1.2 else "neg" if v < 0.8 else "neutral"
+
+
+def _align_cls(v) -> str:
+    if not _v(v):
+        return ""
+    return "pos" if v >= 0.3 else "neg" if v < -0.3 else "neutral"
+
+
 # ── template data preparation ─────────────────────────────────────────────────
 
 def _prep_fund(fm: dict) -> dict | None:
@@ -804,16 +816,8 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
         metric("MA200比",     _pct(m.get("distance_from_ma_200")),   _cls(m.get("distance_from_ma_200"))),
         metric("平均売買代金 3M",
                f"{m.get('avg_traded_value_3m', 0):,.0f}" if m.get("avg_traded_value_3m") else "N/A"),
-        metric("RVOL (20D/60D)",
-               _f(m.get("rvol_20_60")),
-               "pos" if (m.get("rvol_20_60") or 0) >= 1.2
-               else "neg" if (m.get("rvol_20_60") or 0) < 0.8 and m.get("rvol_20_60") is not None
-               else "neutral"),
-        metric("PV Alignment",
-               _f(m.get("price_volume_alignment")),
-               "pos" if (m.get("price_volume_alignment") or 0) >= 0.3
-               else "neg" if (m.get("price_volume_alignment") or 0) < -0.3 and m.get("price_volume_alignment") is not None
-               else "neutral"),
+        metric("RVOL (20D/60D)", _f(m.get("rvol_20_60")),             _rvol_cls(m.get("rvol_20_60"))),
+        metric("PV Alignment",  _f(m.get("price_volume_alignment")),  _align_cls(m.get("price_volume_alignment"))),
     ]
 
     rr = data.get("ranking_row", pd.Series(dtype=float))
