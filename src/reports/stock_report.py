@@ -509,51 +509,41 @@ def _hist_table(history: dict, col_defs: list, caption: str = "") -> str:
     )
 
 
+def _money_fmt(currency: str) -> tuple:
+    """Return (formatter_fn, unit_label) for the given currency."""
+    if currency == "JPY":
+        return fmt_jpy, "億円"
+    return fmt_usd, "B USD"
+
+
 def _build_revenue_table(history: dict, currency: str) -> str:
-    _fmt_m = fmt_jpy if currency == "JPY" else fmt_usd
-    unit = "億円" if currency == "JPY" else "B USD"
-
-    def _pct(v):
-        return pct_already(v) if _v(v) else "—"
-
-    def _mon(v):
-        return _fmt_m(v) if _v(v) else "—"
-
+    fmt_m, unit = _money_fmt(currency)
     cols = [
-        ("revenue",          f"売上高({unit})",   _mon),
-        ("operating_profit", f"営業利益({unit})",  _mon),
-        ("net_income",       f"純利益({unit})",    _mon),
-        ("operating_margin", "営業利益率",         _pct),
+        ("revenue",          f"売上高({unit})",  fmt_m),
+        ("operating_profit", f"営業利益({unit})", fmt_m),
+        ("net_income",       f"純利益({unit})",   fmt_m),
+        ("operating_margin", "営業利益率",        pct_already),
     ]
     if currency == "JPY":
-        cols.insert(2, ("ordinary_profit", f"経常利益({unit})", _mon))
-
+        cols.insert(2, ("ordinary_profit", f"経常利益({unit})", fmt_m))
     return _hist_table(history, cols)
 
 
 def _build_roe_table(history: dict) -> str:
-    def _pct(v):
-        return pct_already(v) if _v(v) else "—"
-
     return _hist_table(history, [
-        ("roe",          "ROE %",       _pct),
-        ("roa",          "ROA %",       _pct),
-        ("equity_ratio", "自己資本比率 %", _pct),
+        ("roe",          "ROE %",        pct_already),
+        ("roa",          "ROA %",        pct_already),
+        ("equity_ratio", "自己資本比率 %", pct_already),
     ])
 
 
 def _build_cf_table(history: dict, currency: str) -> str:
-    _fmt_m = fmt_jpy if currency == "JPY" else fmt_usd
-    unit = "億円" if currency == "JPY" else "B USD"
-
-    def _mon(v):
-        return _fmt_m(v) if _v(v) else "—"
-
+    fmt_m, unit = _money_fmt(currency)
     return _hist_table(history, [
-        ("operating_cf",        f"営業CF({unit})",   _mon),
-        ("free_cf",             f"FCF({unit})",       _mon),
-        ("interest_bearing_debt", f"有利子負債({unit})", _mon),
-        ("cash",                f"現金等({unit})",    _mon),
+        ("operating_cf",          f"営業CF({unit})",    fmt_m),
+        ("free_cf",               f"FCF({unit})",        fmt_m),
+        ("interest_bearing_debt", f"有利子負債({unit})",  fmt_m),
+        ("cash",                  f"現金等({unit})",     fmt_m),
     ])
 
 
