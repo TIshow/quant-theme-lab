@@ -733,8 +733,8 @@ def _prep_fund(fm: dict) -> dict | None:
         "ev_rev_fmt":  fmt_x(_get("ev_rev")),
         "peg_fmt":     fmt_x(peg_v, digits=2) if _v(peg_v) and peg_v > 0 else "—",
         "peg_cls":     _peg_cls(peg_v),
-        "div_yield_fmt": pct_already(_get("dividend_yield"), digits=2) if _v(_get("dividend_yield")) else "—",
-        "payout_fmt":    pct_already(_get("payout_ratio"), digits=1)   if _v(_get("payout_ratio"))   else "—",
+        "div_yield_fmt": pct_already(_get("dividend_yield"), digits=2),
+        "payout_fmt":    pct_already(_get("payout_ratio"),   digits=1),
         # Growth
         "rev_g1_fmt": pct_signed(rev_g1_v), "rev_g1_cls": _growth_cls(rev_g1_v),
         "rev_c3_fmt": pct_signed(rev_c3_v), "rev_c3_cls": _growth_cls(rev_c3_v),
@@ -752,9 +752,9 @@ def _prep_fund(fm: dict) -> dict | None:
         "fcf_margin_fmt": pct_already(fcf_marg_v),   "fcf_margin_cls": _margin_cls(fcf_marg_v),
         # Quality
         "eq_ratio_fmt": pct_already(eq_ratio_v), "eq_ratio_cls": _eq_ratio_cls(eq_ratio_v),
-        "de_fmt":       fmt_x(de_v, digits=2) if _v(de_v) else "—", "de_cls": _de_cls(de_v),
-        "fcf_conv_fmt": fmt_x(_get("fcf_conversion"), digits=2) if _v(_get("fcf_conversion")) else "—",
-        "capex_fmt":    pct_already(_get("capex_ratio"), digits=1) if _v(_get("capex_ratio")) else "—",
+        "de_fmt":       fmt_x(de_v, digits=2),        "de_cls": _de_cls(de_v),
+        "fcf_conv_fmt": fmt_x(_get("fcf_conversion"), digits=2),
+        "capex_fmt":    pct_already(_get("capex_ratio"), digits=1),
         "ibd_fmt":      _fmt_money(_get("interest_bearing_debt")),
         "cash_fmt":     _fmt_money(_get("cash")),
         # Absolute summary
