@@ -89,6 +89,17 @@ _TEMPLATE = """<!DOCTYPE html>
   <strong>RVOL (20D/60D)</strong>: 直近20日平均出来高 ÷ 60日基準出来高。1.0超 = 市場関心が高まっている。価格上昇と同時に高い場合は確信度の高い買い。<br>
   <strong>価格出来高アライメント</strong>: 株価変化と出来高変化の20日ローリング相関。プラス=上昇時に出来高増（買い集め）、マイナス=下落時に出来高増（分配・売り圧力）。
 </p>
+<div style="background:#1e293b;border-radius:8px;padding:14px 18px;margin:10px 0 14px;font-size:.80em;line-height:1.8;border-left:3px solid #3b82f6">
+  <strong style="color:#93c5fd">📌 実戦での使い方</strong><br>
+  このセクションは「<strong>何を買うか</strong>」ではなく「<strong>いつ買うか / 持ち続けるか</strong>」の補助判断に使う。<br><br>
+  <strong>✅ 強気シグナル（エントリーを積極化）</strong><br>
+  　・上パネルのバーが<span style="color:#4ade80">緑</span>続きで RVOL が 1.2 超 → 上昇に出来高が伴っており、機関が積極的に買っている可能性<br>
+  　・下パネルのアライメントがプラス圏で推移 → 上昇時に出来高が増える買い集めのパターン<br><br>
+  <strong>⚠️ 注意シグナル（利確・様子見を検討）</strong><br>
+  　・価格が上昇しているのに RVOL が 0.8 未満 → 薄商いの上値。持続性に疑問<br>
+  　・上昇トレンド中にアライメントがマイナスに転換 → 下落時に出来高が増え始めており、分配（売り）の兆候<br><br>
+  <strong style="color:#94a3b8">⚡ 注意点</strong>: 出来高シグナルは単独では弱い。モメンタム・ファンダメンタルズで有望と判断した銘柄のエントリータイミングを絞るために使うのが現実的な活用法。
+</div>
 <div class="chart">{{ volume_dynamics_chart }}</div>
 
 <h2>価格系メトリクス</h2>
