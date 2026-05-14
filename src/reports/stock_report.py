@@ -224,6 +224,7 @@ _f = fmt
 _cls = signed_cls
 
 _BG      = "#1e293b"
+_VALID_QUALITY_FLAGS = frozenset({"OK", "LIMITED_HISTORY", "VERY_SHORT_HISTORY"})
 _BG_PLOT = "#0f172a"
 
 
@@ -780,11 +781,6 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
     m = data.get("metrics_dict", {})
     dq = data.get("data_quality", {})
     flag = dq.get("data_quality_flag", "UNKNOWN")
-    quality_class_map = {
-        "OK": "OK",
-        "LIMITED_HISTORY": "LIMITED_HISTORY",
-        "VERY_SHORT_HISTORY": "VERY_SHORT_HISTORY",
-    }
 
     def metric(label, value, cls=""):
         return {"label": label, "value": value, "cls": cls}
@@ -851,7 +847,7 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
         category_rank=data.get("category_rank"),
         history_days=dq.get("available_history_days", 0),
         data_quality_flag=flag,
-        quality_class=quality_class_map.get(flag, "VERY_SHORT_HISTORY"),
+        quality_class=flag if flag in _VALID_QUALITY_FLAGS else "VERY_SHORT_HISTORY",
         ticker_themes=data.get("ticker_themes", []),
         price_chart=_price_chart(
             data.get("chart_dates", []), data.get("chart_prices", []), ticker),
