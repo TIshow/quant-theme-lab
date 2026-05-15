@@ -6,6 +6,7 @@ from src.data.irbank_scraper import fetch_fundamentals
 from src.data.yfinance_fundamentals import fetch_us_fundamentals
 from src.factors.factor_table import build_factor_table
 from src.factors.fundamental_valuation import compute_fundamental_metrics
+from src.factors.technical import compute_technical_indicators
 from src.scoring.scorer import compute_scores
 from src.scoring.ranking import rank_stocks
 from src.analytics.correlation import compute_correlation_matrix, get_top_correlated_stocks
@@ -97,6 +98,7 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
         "ticker_themes": ticker_themes,
         "summary_metrics": summary_metrics,
         "fundamental_metrics": fundamental_metrics,
+        "technical": compute_technical_indicators(price_history),
         "theme_rank": theme_rank,
         "category_rank": category_rank,
         "ranking_row": ranking_row,
@@ -150,6 +152,7 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
         "ticker_themes": ticker_themes,
         "summary_metrics": summary_metrics,
         "fundamental_metrics": fundamental_metrics,
+        "technical": compute_technical_indicators(price_history),
         "theme_rank": None,
         "category_rank": None,
         "ranking_row": pd.Series(dtype=float),

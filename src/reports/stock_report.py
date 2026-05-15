@@ -102,6 +102,42 @@ _TEMPLATE = """<!DOCTYPE html>
 </div>
 <div class="chart">{{ volume_dynamics_chart }}</div>
 
+<h2>テクニカル分析</h2>
+<div style="background:#1e293b;border-radius:8px;padding:14px 18px;margin:10px 0 14px;font-size:.80em;line-height:1.7;border-left:3px solid #a78bfa">
+  <strong style="color:#93c5fd">📌 このセクションの使い方</strong>　—　スコアで「何を買うか」を決めたあと、<strong>「いつ買うか」のタイミング</strong>を絞るために使う。<br><br>
+  <table style="width:100%;font-size:.95em;border-collapse:collapse">
+    <thead><tr>
+      <th style="text-align:left;color:#64748b;font-weight:normal;padding:2px 8px 6px 0;width:15%">指標</th>
+      <th style="text-align:left;color:#64748b;font-weight:normal;padding:2px 8px 6px 0;width:28%">値の読み方</th>
+      <th style="text-align:left;color:#64748b;font-weight:normal;padding:2px 0 6px 0">判断</th>
+    </tr></thead>
+    <tbody>
+      <tr><td style="padding:3px 8px 3px 0;color:#a78bfa;white-space:nowrap">RSI (14日)</td>
+          <td style="padding:3px 8px 3px 0"><span style="color:#4ade80">&lt; 30</span> / <span style="color:#fbbf24">30–70</span> / <span style="color:#f87171">&gt; 70</span></td>
+          <td style="padding:3px 0">売られすぎ（反発候補）／ 中立 ／ 過熱（新規買い慎重）</td></tr>
+      <tr><td style="padding:3px 8px 3px 0;color:#a78bfa;white-space:nowrap">MACD ヒスト</td>
+          <td style="padding:3px 8px 3px 0"><span style="color:#4ade80">プラス</span> / <span style="color:#f87171">マイナス</span></td>
+          <td style="padding:3px 0">上昇勢い継続 ／ 下落勢い。<strong>ゼロ線交差</strong>がトレンド転換のサイン</td></tr>
+      <tr><td style="padding:3px 8px 3px 0;color:#a78bfa;white-space:nowrap">BB %B</td>
+          <td style="padding:3px 8px 3px 0"><span style="color:#f87171">&gt; 1.0</span> / <span style="color:#fbbf24">0–1</span> / <span style="color:#4ade80">&lt; 0</span></td>
+          <td style="padding:3px 0">上バンド突破（過熱域）／ バンド内 ／ 下バンド割れ（売られすぎ）</td></tr>
+      <tr><td style="padding:3px 8px 3px 0;color:#a78bfa;white-space:nowrap">BB 幅 (%)</td>
+          <td style="padding:3px 8px 3px 0">小さいほど<strong>スクイーズ</strong></td>
+          <td style="padding:3px 0">バンドが急縮小 → 大きな値動きの前兆。方向はブレイクアウト方向で判断</td></tr>
+    </tbody>
+  </table>
+</div>
+{% if technical %}
+<div class="grid">
+  <div class="card"><div class="lbl">RSI (14日)</div><div class="val {{ technical.rsi_cls }}">{{ technical.rsi_fmt }}</div></div>
+  <div class="card"><div class="lbl">MACD ヒストグラム</div><div class="val {{ technical.macd_hist_cls }}">{{ technical.macd_hist_fmt }}</div></div>
+  <div class="card"><div class="lbl">BB 幅 (%)</div><div class="val {{ technical.bb_width_cls }}">{{ technical.bb_width_fmt }}</div></div>
+  <div class="card"><div class="lbl">BB %B</div><div class="val">{{ technical.bb_pct_b_fmt }}</div></div>
+</div>
+<div class="chart">{{ bb_chart }}</div>
+<div class="chart">{{ macd_rsi_chart }}</div>
+{% endif %}
+
 <h2>価格系メトリクス</h2>
 <div class="desc" style="font-size:.80em;line-height:1.7">
   <strong>リターン (1M/3M/6M/12M)</strong>: 各期間の株価騰落率。プラスが上昇、マイナスが下落。<br>
@@ -338,6 +374,97 @@ def _volume_dynamics_chart(price_history: pd.DataFrame) -> str:
     fig.update_yaxes(title_text="出来高", secondary_y=False, row=1, col=1)
     fig.update_yaxes(title_text="RVOL", secondary_y=True, row=1, col=1)
     fig.update_yaxes(title_text="相関係数 (−1〜1)", row=2, col=1)
+
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False)
+
+
+# ── technical indicator charts ────────────────────────────────────────────────
+
+def _bb_price_chart(td: dict, ticker: str) -> str:
+    """Price chart with Bollinger Bands overlay."""
+    dates = td.get("dates", [])
+    if not dates:
+        return "<p>データなし</p>"
+
+    prices    = td.get("prices", [])
+    bb_upper  = td.get("bb_upper_series", [])
+    bb_mid    = td.get("bb_middle_series", [])
+    bb_lower  = td.get("bb_lower_series", [])
+
+    fig = go.Figure()
+    # Fill between upper and lower
+    fig.add_trace(go.Scatter(
+        x=dates + dates[::-1],
+        y=bb_upper + bb_lower[::-1],
+        fill="toself", fillcolor="rgba(99,102,241,0.12)",
+        line=dict(color="rgba(0,0,0,0)"),
+        showlegend=False, hoverinfo="skip",
+    ))
+    fig.add_trace(go.Scatter(x=dates, y=bb_upper,  name="BB Upper",
+                             line=dict(color="#6366f1", width=1, dash="dot"), mode="lines"))
+    fig.add_trace(go.Scatter(x=dates, y=bb_mid,    name="BB Middle (MA20)",
+                             line=dict(color="#fbbf24", width=1.5, dash="dash"), mode="lines"))
+    fig.add_trace(go.Scatter(x=dates, y=bb_lower,  name="BB Lower",
+                             line=dict(color="#6366f1", width=1, dash="dot"), mode="lines"))
+    fig.add_trace(go.Scatter(x=dates, y=prices,    name=ticker,
+                             line=dict(color="#3b82f6", width=2), mode="lines"))
+    fig.update_layout(
+        template="plotly_dark", height=420, paper_bgcolor=_BG, plot_bgcolor=_BG_PLOT,
+        title=f"{ticker} — 価格 + ボリンジャーバンド (20日, ±2σ)",
+        legend=dict(orientation="h", y=-0.18),
+    )
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False)
+
+
+def _macd_rsi_chart(td: dict) -> str:
+    """2-panel: MACD (line + signal + histogram) and RSI."""
+    dates = td.get("dates", [])
+    if not dates:
+        return "<p>データなし</p>"
+
+    macd_line   = td.get("macd_line_series", [])
+    macd_signal = td.get("macd_signal_series", [])
+    macd_hist   = td.get("macd_hist_series", [])
+    rsi         = td.get("rsi_series", [])
+
+    hist_colors = [
+        "#4ade80" if (v is not None and v >= 0) else "#f87171"
+        for v in macd_hist
+    ]
+
+    fig = make_subplots(
+        rows=2, cols=1,
+        subplot_titles=["MACD (EMA12−EMA26) + シグナル (EMA9)", "RSI (14日)"],
+        vertical_spacing=0.18,
+        row_heights=[0.6, 0.4],
+    )
+
+    fig.add_trace(go.Bar(x=dates, y=macd_hist, name="ヒストグラム",
+                         marker_color=hist_colors, opacity=0.7, showlegend=False), row=1, col=1)
+    fig.add_trace(go.Scatter(x=dates, y=macd_line,   name="MACD",
+                             line=dict(color="#3b82f6", width=2), mode="lines"), row=1, col=1)
+    fig.add_trace(go.Scatter(x=dates, y=macd_signal, name="シグナル",
+                             line=dict(color="#f97316", width=1.5, dash="dot"), mode="lines"), row=1, col=1)
+    # Zero line
+    fig.add_trace(go.Scatter(x=[dates[0], dates[-1]], y=[0, 0],
+                             line=dict(color="#64748b", width=1, dash="dot"),
+                             showlegend=False, mode="lines"), row=1, col=1)
+
+    fig.add_trace(go.Scatter(x=dates, y=rsi, name="RSI",
+                             line=dict(color="#a78bfa", width=2), mode="lines"), row=2, col=1)
+    for level, color in [(70, "#f87171"), (30, "#4ade80"), (50, "#64748b")]:
+        fig.add_trace(go.Scatter(
+            x=[dates[0], dates[-1]], y=[level, level],
+            line=dict(color=color, width=1, dash="dot"),
+            showlegend=False, mode="lines",
+        ), row=2, col=1)
+
+    fig.update_layout(
+        template="plotly_dark", height=540, paper_bgcolor=_BG, plot_bgcolor=_BG_PLOT,
+        title="MACD / RSI",
+        legend=dict(orientation="h", y=-0.12),
+    )
+    fig.update_yaxes(title_text="RSI (0–100)", range=[0, 100], row=2, col=1)
 
     return pio.to_html(fig, include_plotlyjs=False, full_html=False)
 
@@ -653,6 +780,25 @@ def _align_cls(v) -> str:
     return "pos" if v >= 0.3 else "neg" if v < -0.3 else "neutral"
 
 
+def _rsi_cls(v) -> str:
+    if not _v(v):
+        return ""
+    return "neg" if v >= 70 else "pos" if v <= 30 else "neutral"
+
+
+def _macd_hist_cls(v) -> str:
+    if not _v(v):
+        return ""
+    return "pos" if v > 0 else "neg"
+
+
+def _bb_width_cls(v) -> str:
+    """BB bandwidth as % of midline: squeeze (<10%) = neutral, wide (>40%) = neg."""
+    if not _v(v):
+        return ""
+    return "neutral" if v < 10 else "neg" if v > 40 else ""
+
+
 # ── template data preparation ─────────────────────────────────────────────────
 
 def _prep_fund(fm: dict) -> dict | None:
@@ -847,6 +993,25 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
 
     fund = _prep_fund(data.get("fundamental_metrics", {}))
 
+    td = data.get("technical", {})
+
+    def _tech_fmt(v, digits=2):
+        if v is None or not math.isfinite(v):
+            return "—"
+        return f"{v:.{digits}f}"
+
+    technical_ctx = None
+    if td:
+        technical_ctx = {
+            "rsi_fmt":       _tech_fmt(td.get("rsi"), 1),
+            "rsi_cls":       _rsi_cls(td.get("rsi")),
+            "macd_hist_fmt": _tech_fmt(td.get("macd_hist")),
+            "macd_hist_cls": _macd_hist_cls(td.get("macd_hist")),
+            "bb_width_fmt":  _tech_fmt(td.get("bb_bandwidth"), 1),
+            "bb_width_cls":  _bb_width_cls(td.get("bb_bandwidth")),
+            "bb_pct_b_fmt":  _tech_fmt(td.get("bb_pct_b")),
+        }
+
     html = Template(_TEMPLATE).render(
         css=_CSS,
         ticker=ticker,
@@ -867,6 +1032,9 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
             data.get("chart_traded_values", []), ticker),
         volume_dynamics_chart=_volume_dynamics_chart(
             data.get("price_history", pd.DataFrame())),
+        technical=technical_ctx,
+        bb_chart=_bb_price_chart(td, ticker) if td else "",
+        macd_rsi_chart=_macd_rsi_chart(td) if td else "",
         metrics=key_metrics,
         bm=bm,
         top_corr=top_corr,
