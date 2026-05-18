@@ -42,7 +42,10 @@ def _parse_value(s: str) -> float:
         return np.nan
     s = s.replace(",", "")
     multiplier = 1.0
-    if "億" in s:
+    if "兆" in s:
+        multiplier = 1e12
+        s = s.replace("兆", "")
+    elif "億" in s:
         multiplier = 1e8
         s = s.replace("億", "")
     elif "百万" in s:
@@ -75,7 +78,9 @@ _TABLE_COLUMNS = {
     1: {  # BS
         "総資産":     "total_assets",
         "純資産":     "net_assets",
+        "資本合計":   "net_assets",       # IFRS表記
         "自己資本比率": "equity_ratio",
+        "株主資本比率": "equity_ratio",    # IFRS表記
         "利益剰余金":  "retained_earnings",
         "有利子負債":  "interest_bearing_debt",
         "BPS":       "bps",
@@ -100,7 +105,7 @@ _TABLE_COLUMNS = {
 # Columns that are already in percent / ratio (do NOT multiply by 億)
 _RATIO_COLS = {
     "ROE", "ROA", "営利率", "原価率", "販管費率",
-    "自己資本比率", "有利子負債比率", "営業CFマージン",
+    "自己資本比率", "株主資本比率", "有利子負債比率", "営業CFマージン",
     "EPS", "BPS",
     "年間配当", "配当金", "配当利回り", "配当性向",
 }
