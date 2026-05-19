@@ -259,6 +259,13 @@ stocks:
     themes:
       data_center: 4
 
+  - ticker: "6914.T"
+    name: "Optex Group"
+    country: "JP"
+    sector: "technology"
+    themes:
+      data_center: 2
+
   # ── US ─────────────────────────────────────────────────────────────────────
 
   - ticker: "TSLA"
