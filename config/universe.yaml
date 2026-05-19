@@ -266,6 +266,13 @@ stocks:
     themes:
       data_center: 2
 
+  - ticker: "350A.T"
+    name: "Digital Grid"
+    country: "JP"
+    sector: "utilities"
+    themes:
+      battery_storage: 2
+
   # ── US ─────────────────────────────────────────────────────────────────────
 
   - ticker: "TSLA"
