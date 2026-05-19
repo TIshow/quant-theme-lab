@@ -229,6 +229,7 @@ stocks:
     sector: "technology"
     themes:
       ai_infrastructure: 3
+      data_center: 2
 
   - ticker: "6954.T"
     name: "Fanuc"
@@ -236,6 +237,27 @@ stocks:
     sector: "industrials"
     themes:
       ai_infrastructure: 3
+
+  - ticker: "9613.T"
+    name: "NTT Data Group"
+    country: "JP"
+    sector: "technology"
+    themes:
+      data_center: 4
+
+  - ticker: "9432.T"
+    name: "NTT"
+    country: "JP"
+    sector: "communication_services"
+    themes:
+      data_center: 3
+
+  - ticker: "3774.T"
+    name: "Internet Initiative Japan"
+    country: "JP"
+    sector: "technology"
+    themes:
+      data_center: 4
 
   # ── US ─────────────────────────────────────────────────────────────────────
 
@@ -317,6 +339,7 @@ stocks:
     themes:
       semiconductor: 5
       ai_infrastructure: 5
+      data_center: 3
 
   - ticker: "TSM"
     name: "TSMC"
@@ -354,6 +377,7 @@ stocks:
     themes:
       semiconductor: 4
       ai_infrastructure: 4
+      data_center: 3
 
   - ticker: "LMT"
     name: "Lockheed Martin"
@@ -396,6 +420,7 @@ stocks:
     sector: "technology"
     themes:
       ai_infrastructure: 5
+      data_center: 5
 
   - ticker: "VRT"
     name: "Vertiv Holdings"
@@ -403,6 +428,7 @@ stocks:
     sector: "industrials"
     themes:
       ai_infrastructure: 5
+      data_center: 5
 
   - ticker: "DELL"
     name: "Dell Technologies"
@@ -410,6 +436,7 @@ stocks:
     sector: "technology"
     themes:
       ai_infrastructure: 3
+      data_center: 3
 
   - ticker: "MSFT"
     name: "Microsoft"
@@ -417,6 +444,7 @@ stocks:
     sector: "technology"
     themes:
       ai_infrastructure: 3
+      data_center: 3
 
   - ticker: "GOOGL"
     name: "Alphabet"
@@ -424,3 +452,47 @@ stocks:
     sector: "technology"
     themes:
       ai_infrastructure: 3
+      data_center: 2
+
+  - ticker: "EQIX"
+    name: "Equinix"
+    country: "US"
+    sector: "real_estate"
+    themes:
+      data_center: 5
+
+  - ticker: "DLR"
+    name: "Digital Realty Trust"
+    country: "US"
+    sector: "real_estate"
+    themes:
+      data_center: 5
+
+  - ticker: "ANET"
+    name: "Arista Networks"
+    country: "US"
+    sector: "technology"
+    themes:
+      data_center: 4
+
+  - ticker: "AMZN"
+    name: "Amazon"
+    country: "US"
+    sector: "consumer_discretionary"
+    themes:
+      data_center: 4
+      ai_infrastructure: 4
+
+  - ticker: "CEG"
+    name: "Constellation Energy"
+    country: "US"
+    sector: "utilities"
+    themes:
+      data_center: 3
+
+  - ticker: "IRON"
+    name: "Iron Mountain"
+    country: "US"
+    sector: "real_estate"
+    themes:
+      data_center: 3

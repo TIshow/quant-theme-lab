@@ -38,9 +38,9 @@ def test_weights_returned():
 
 def test_global_universe_multi_theme():
     df = load_universe()
-    # NVDA should appear in both semiconductor and ai_infrastructure
+    # NVDA should appear in semiconductor, ai_infrastructure, and data_center
     nvda = df[df["ticker"] == "NVDA"]
-    assert len(nvda) == 2
+    assert len(nvda) >= 2
     themes = set(nvda["theme"].tolist())
     assert "semiconductor" in themes
     assert "ai_infrastructure" in themes

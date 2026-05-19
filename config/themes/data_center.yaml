@@ -1,0 +1,43 @@
+theme: data_center
+display_name: "Data Center / データセンター"
+description: >
+  AI・クラウド需要を背景に急拡大するデータセンターインフラへの投資テーマ。
+  コロケーション・REITから冷却設備・電力・ネットワーク機器まで、
+  DC運営に直結するバリューチェーン全体を対象とする。
+
+benchmark:
+  jp: "1306.T"
+  us: "SPY"
+
+analysis:
+  start_date: "2023-01-01"
+  min_theme_purity: 2
+  top_n_backtest: 5
+
+weights:
+  momentum: 0.22
+  volatility: 0.09
+  drawdown: 0.09
+  liquidity: 0.08
+  theme_purity: 0.18
+  risk_adjusted_return: 0.22
+  volume: 0.08
+  fundamentals: 0.04
+
+volume_weights:
+  rvol_20_60: 0.60
+  price_volume_alignment: 0.40
+
+momentum_weights:
+  return_1m: 0.20
+  return_3m: 0.50
+  return_6m: 0.30
+
+risk_adjusted_return_weights:
+  sharpe_6m: 0.40
+  sharpe_12m: 0.40
+  calmar_12m: 0.20
+
+backtest:
+  transaction_cost_bps: 15
+  execution_lag_days: 1
