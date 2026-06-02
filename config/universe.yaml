@@ -41,6 +41,14 @@ stocks:
     themes:
       battery_storage: 4
 
+  - ticker: "6994.T"
+    name: "Shizuki Electric"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      data_center: 3
+      battery_storage: 2
+
   - ticker: "6996.T"
     name: "Nichicon"
     country: "JP"
