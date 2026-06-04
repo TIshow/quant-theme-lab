@@ -246,6 +246,13 @@ stocks:
     themes:
       ai_infrastructure: 3
 
+  - ticker: "5108.T"
+    name: "Bridgestone"
+    country: "JP"
+    sector: "consumer_discretionary"
+    themes:
+      ai_infrastructure: 3
+
   - ticker: "9613.T"
     name: "NTT Data Group"
     country: "JP"
