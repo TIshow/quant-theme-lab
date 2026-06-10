@@ -281,6 +281,55 @@ stocks:
     themes:
       battery_storage: 2
 
+  - ticker: "7561.T"
+    name: "Harxley"
+    country: "JP"
+    sector: "consumer_discretionary"
+    themes:
+      food_logistics: 4
+
+  - ticker: "7550.T"
+    name: "Zensho Holdings"
+    country: "JP"
+    sector: "consumer_discretionary"
+    themes:
+      food_logistics: 3
+
+  - ticker: "2871.T"
+    name: "Nichirei"
+    country: "JP"
+    sector: "consumer_staples"
+    themes:
+      food_logistics: 3
+
+  - ticker: "2897.T"
+    name: "Nissin Foods Holdings"
+    country: "JP"
+    sector: "consumer_staples"
+    themes:
+      food_logistics: 3
+
+  - ticker: "9143.T"
+    name: "SG Holdings"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      food_logistics: 4
+
+  - ticker: "9064.T"
+    name: "Yamato Holdings"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      food_logistics: 3
+
+  - ticker: "9069.T"
+    name: "Senko Group Holdings"
+    country: "JP"
+    sector: "industrials"
+    themes:
+      food_logistics: 3
+
   # ── US ─────────────────────────────────────────────────────────────────────
 
   - ticker: "TSLA"

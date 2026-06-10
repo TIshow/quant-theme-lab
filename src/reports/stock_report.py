@@ -161,7 +161,25 @@ _TEMPLATE = """<!DOCTYPE html>
   <div class="card"><div class="lbl">Beta</div><div class="val">{{ '%.2f'|format(bm.beta or 0) }}</div></div>
   <div class="card"><div class="lbl">Alpha (年率)</div>
     <div class="val {{ 'pos' if (bm.alpha or 0) > 0 else 'neg' }}">{{ '%.1f%%'|format((bm.alpha or 0)*100) }}</div></div>
+  <div class="card"><div class="lbl">相関 (日次)</div><div class="val">{{ '%+.2f'|format(bm.corr or 0) }}</div></div>
 </div>
+{% endif %}
+
+{% if cost_metrics %}
+<h2>コスト連動性 (入力コストドライバー)</h2>
+<div class="desc" style="font-size:.80em;line-height:1.7">
+  米価・資材・燃料・為替はコスト→マージン要因のため、効果は四半期の利益率に出る。
+  日次相関は弱く出やすいので、<strong>月次相関</strong>と<strong>月次ベータ</strong>（その指数が+1%上昇したときの株価感応度）も併記。
+  符号がマイナスならコスト上昇＝株価下落の関係。米はUS先物（ZR=F）の代理で、国産米価は反映しにくい点に留意。
+</div>
+<table><thead><tr>
+  <th>ドライバー</th><th>指数</th><th>相関(日次)</th><th>相関(月次)</th><th>β(月次)</th><th>n(月)</th>
+</tr></thead><tbody>
+{% for c in cost_metrics %}<tr>
+  <td>{{ c.label }}</td><td>{{ c.ticker }}</td>
+  <td>{{ c.corr_daily }}</td><td>{{ c.corr_monthly }}</td><td>{{ c.beta_monthly }}</td><td>{{ c.n_monthly }}</td>
+</tr>{% endfor %}
+</tbody></table>
 {% endif %}
 
 {% if top_corr %}
@@ -984,9 +1002,22 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
     bm_raw = data.get("benchmark_metrics", {})
     bm = (
         {"ticker": bm_raw.get("benchmark_ticker", ""),
-         "beta": bm_raw.get("beta"), "alpha": bm_raw.get("alpha")}
+         "beta": bm_raw.get("beta"), "alpha": bm_raw.get("alpha"),
+         "corr": bm_raw.get("corr")}
         if bm_raw else None
     )
+
+    def _fmt_corr(v):
+        return "—" if v is None or (isinstance(v, float) and not math.isfinite(v)) else f"{v:+.2f}"
+
+    cost_metrics = [
+        {"label": c["label"], "ticker": c["ticker"],
+         "corr_daily": _fmt_corr(c.get("corr_daily")),
+         "corr_monthly": _fmt_corr(c.get("corr_monthly")),
+         "beta_monthly": _fmt_corr(c.get("beta_monthly")),
+         "n_monthly": c.get("n_monthly", 0)}
+        for c in data.get("cost_metrics", []) or []
+    ]
 
     corr_df = data.get("top_correlated", pd.DataFrame())
     top_corr = corr_df.to_dict("records") if not corr_df.empty else []
@@ -1037,6 +1068,7 @@ def generate_stock_html_report(analysis_result: dict, output_path: str) -> None:
         macd_rsi_chart=_macd_rsi_chart(td) if td else "",
         metrics=key_metrics,
         bm=bm,
+        cost_metrics=cost_metrics,
         top_corr=top_corr,
         scores=scores if scores else None,
         fund=fund,
