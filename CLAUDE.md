@@ -62,6 +62,13 @@ Layer 3: analyze_stock.py    「その銘柄を深掘りする」 → 個別銘�
 **バックテスト**: 取引コスト（片道bps）+ 実行ラグ（1日）を必ず含める
 → `src/backtest/simple_backtest.py`
 
+**コストドライバー連動性**: テーマYAMLに `cost_benchmarks`（yfinanceティッカー）を
+定義すると、個別分析でその銘柄と入力コスト（米・穀物・燃料・為替等）の
+相関(日次/月次)・月次βを自動算出してレポート表示する。半導体が SOXX と
+自動比較されるのと同じ「テーマ駆動ベンチマーク」の発想を、コスト要因に拡張したもの。
+コスト→マージンの波及は四半期で効くため日次相関は弱く、月次を併記する。
+→ `src/stock/stock_analyzer.py:_cost_driver_metrics()`、`config/themes/food_logistics.yaml`
+
 ## ファイル構成
 
 ```
@@ -71,7 +78,7 @@ config/
   themes/                # テーマごとのパラメータYAML
 
 src/
-  config/loader.py       # YAML読み込み、テーマフィルタリング、load_market_params(), get_risk_free_rate()
+  config/loader.py       # YAML読み込み、テーマフィルタリング、load_market_params(), get_risk_free_rate(), get_cost_benchmarks()
   data/price_loader.py   # yfinance価格取得
   data/yfinance_fundamentals.py  # US 銘柄の財務データ（yfinance）
   factors/               # 個別ファクター計算（returns, vol, drawdown, liquidity, risk, ma）
@@ -89,7 +96,7 @@ src/
   backtest/
     simple_backtest.py   # 月次モメンタム top-N バックテスト（コスト込み）
     walk_forward.py      # Walk-forward アウトオブサンプル検証
-  stock/stock_analyzer.py # 個別銘柄分析（テーマ有無両対応）
+  stock/stock_analyzer.py # 個別銘柄分析（テーマ有無両対応）+ コストドライバー連動性（_cost_driver_metrics）
   reports/               # Plotly + Jinja2 HTML レポート生成（3種）
 ```
 
@@ -97,6 +104,7 @@ src/
 
 1. `config/universe.yaml` に銘柄を追加（`themes:` に新テーマ名と purity を記載）
 2. `config/themes/<new_theme>.yaml` を作成（既存テーマをコピーしてパラメータ変更）
+   - コスト要因が効くテーマ（中食・食品・物流等）は `cost_benchmarks` を追加すると個別分析で連動性が自動表示される
 3. `pnpm run pipeline --theme <new_theme>` で実行
 
 ## データ品質フラグ

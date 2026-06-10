@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from src.config.loader import load_theme_config, get_theme_universe, get_weights, get_benchmark, load_universe, get_risk_free_rate
+from src.config.loader import load_theme_config, get_theme_universe, get_weights, get_benchmark, get_cost_benchmarks, load_universe, get_risk_free_rate
 from src.data.price_loader import download_price_data
 from src.data.irbank_scraper import fetch_fundamentals
 from src.data.yfinance_fundamentals import fetch_us_fundamentals
@@ -24,6 +24,81 @@ def analyze_stock(
     if theme:
         return _analyze_with_theme(ticker, theme, start_date)
     return _analyze_standalone(ticker, start_date)
+
+
+def _benchmark_metrics(asset_ret: pd.Series, bm_ret: pd.Series, benchmark_ticker: str) -> dict:
+    aligned = pd.concat([asset_ret, bm_ret], axis=1).dropna()
+    corr = float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1])) if len(aligned) > 8 else np.nan
+    return {
+        "beta": compute_beta(asset_ret, bm_ret),
+        "alpha": compute_alpha(asset_ret, bm_ret),
+        "corr": corr,
+        "benchmark_ticker": benchmark_ticker,
+    }
+
+
+def _close_series(price_df: pd.DataFrame) -> pd.Series:
+    """Date-indexed close-price series from a price-history frame."""
+    return price_df.set_index("Date")["Close"].sort_index()
+
+
+def _returns_at(close: pd.Series, freq: str) -> pd.Series:
+    """Period-return series. freq='D' (daily) or a resample rule like 'ME'/'W'."""
+    px = close if freq == "D" else close.resample(freq).last()
+    return px.pct_change().dropna()
+
+
+def _cost_driver_metrics(
+    price_history: pd.DataFrame,
+    cost_benchmarks: list[dict],
+    start_date: str,
+) -> list[dict]:
+    """Auto-compare a stock against configured cost-driver indices.
+
+    For margin-sensitive sectors (中食 / 物流), input costs (rice, grains,
+    edible oil, fuel, FX) act on quarterly margins, so daily co-movement is
+    typically weak. We report correlation at daily AND monthly horizons plus
+    a monthly beta, so slow cost pass-through is visible.
+    """
+    if not cost_benchmarks or price_history.empty:
+        return []
+    driver_tickers = [c["ticker"] for c in cost_benchmarks]
+    try:
+        driver_prices = download_price_data(driver_tickers, start_date=start_date)
+    except RuntimeError:
+        logger.warning("No cost-driver price data downloaded")
+        return []
+
+    asset_close = _close_series(price_history)
+    asset_d = _returns_at(asset_close, "D")
+    asset_m = _returns_at(asset_close, "ME")
+
+    out = []
+    for c in cost_benchmarks:
+        dt = c["ticker"]
+        dp = driver_prices[driver_prices["Ticker"] == dt]
+        if dp.empty:
+            logger.warning(f"  cost driver missing: {dt}")
+            continue
+        dclose = _close_series(dp)
+        d_d = _returns_at(dclose, "D")
+        d_m = _returns_at(dclose, "ME")
+
+        pair_d = pd.concat([asset_d, d_d], axis=1).dropna()
+        pair_m = pd.concat([asset_m, d_m], axis=1).dropna()
+        corr_d = float(pair_d.iloc[:, 0].corr(pair_d.iloc[:, 1])) if len(pair_d) > 8 else np.nan
+        corr_m = float(pair_m.iloc[:, 0].corr(pair_m.iloc[:, 1])) if len(pair_m) > 6 else np.nan
+        beta_m = compute_beta(asset_m, d_m) if len(pair_m) > 6 else np.nan
+
+        out.append({
+            "ticker": dt,
+            "label": c.get("label", dt),
+            "corr_daily": corr_d,
+            "corr_monthly": corr_m,
+            "beta_monthly": beta_m,
+            "n_monthly": int(len(pair_m)),
+        })
+    return out
 
 
 def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
@@ -62,13 +137,13 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
     benchmark_metrics: dict = {}
     if not price_history.empty and benchmark_ticker in prices["Ticker"].values:
         bm_prices = prices[prices["Ticker"] == benchmark_ticker].sort_values("Date")
-        asset_ret = price_history.set_index("Date")["Close"].pct_change().dropna()
-        bm_ret = bm_prices.set_index("Date")["Close"].pct_change().dropna()
-        benchmark_metrics = {
-            "beta": compute_beta(asset_ret, bm_ret),
-            "alpha": compute_alpha(asset_ret, bm_ret),
-            "benchmark_ticker": benchmark_ticker,
-        }
+        asset_ret = _returns_at(_close_series(price_history), "D")
+        bm_ret = _returns_at(_close_series(bm_prices), "D")
+        benchmark_metrics = _benchmark_metrics(asset_ret, bm_ret, benchmark_ticker)
+
+    # Auto cost-driver comparison (e.g. food/logistics vs rice/grains/fuel/FX),
+    # analogous to how semiconductor themes auto-compare against SOXX.
+    cost_metrics = _cost_driver_metrics(price_history, get_cost_benchmarks(config), start_date)
 
     meta = universe_df[universe_df["ticker"] == ticker]
     name = meta["name"].values[0] if not meta.empty else ticker
@@ -106,6 +181,7 @@ def _analyze_with_theme(ticker: str, theme: str, start_date: str) -> dict:
         "top_correlated": top_correlated,
         "price_history": price_history,
         "benchmark_metrics": benchmark_metrics,
+        "cost_metrics": cost_metrics,
         "risk_free_rate": rf,
         "data_quality": data_quality,
     }
@@ -129,13 +205,9 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
     benchmark_metrics: dict = {}
     if benchmark_ticker in prices["Ticker"].values:
         bm = prices[prices["Ticker"] == benchmark_ticker].sort_values("Date")
-        ar = price_history.set_index("Date")["Close"].pct_change().dropna()
-        br = bm.set_index("Date")["Close"].pct_change().dropna()
-        benchmark_metrics = {
-            "beta": compute_beta(ar, br),
-            "alpha": compute_alpha(ar, br),
-            "benchmark_ticker": benchmark_ticker,
-        }
+        ar = _returns_at(_close_series(price_history), "D")
+        br = _returns_at(_close_series(bm), "D")
+        benchmark_metrics = _benchmark_metrics(ar, br, benchmark_ticker)
 
     # check if ticker is in universe
     full_universe = load_universe()
@@ -160,6 +232,7 @@ def _analyze_standalone(ticker: str, start_date: str) -> dict:
         "top_correlated": pd.DataFrame(),
         "price_history": price_history,
         "benchmark_metrics": benchmark_metrics,
+        "cost_metrics": [],
         "risk_free_rate": rf,
         "data_quality": {
             "available_history_days": n,

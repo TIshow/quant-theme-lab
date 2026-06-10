@@ -1,0 +1,63 @@
+theme: food_logistics
+display_name: "Food & Logistics / 中食・物流"
+description: >
+  Ready-made meals (中食), prepared foods, food service, and logistics —
+  margin-sensitive businesses whose profitability is driven by input costs:
+  rice, grains, edible oil, fuel, energy, and FX (import cost).
+
+benchmark:
+  jp: "1306.T"
+  us: "SPY"
+
+# Cost-driver indices auto-compared in individual analysis, analogous to how
+# semiconductor themes auto-compare against SOXX. Each stock's report shows
+# correlation (daily + monthly) and monthly beta vs each driver.
+# NOTE: ZR=F is US CBOT rough rice — a loose proxy; Japanese domestic rice
+# price (国産米) has no tradable yfinance series.
+cost_benchmarks:
+  - ticker: "JPY=X"
+    label: "USD/JPY (輸入コスト)"
+  - ticker: "ZR=F"
+    label: "米先物 (US CBOT, 代理)"
+  - ticker: "ZW=F"
+    label: "小麦"
+  - ticker: "ZC=F"
+    label: "とうもろこし"
+  - ticker: "ZL=F"
+    label: "大豆油 (食用油)"
+  - ticker: "CL=F"
+    label: "WTI原油 (物流燃料)"
+  - ticker: "NG=F"
+    label: "天然ガス (エネルギー)"
+
+analysis:
+  start_date: "2023-01-01"
+  min_theme_purity: 2
+  top_n_backtest: 5
+
+weights:
+  momentum: 0.23
+  volatility: 0.10
+  drawdown: 0.10
+  liquidity: 0.08
+  theme_purity: 0.18
+  risk_adjusted_return: 0.23
+  volume: 0.08
+
+volume_weights:
+  rvol_20_60: 0.60
+  price_volume_alignment: 0.40
+
+momentum_weights:
+  return_1m: 0.20
+  return_3m: 0.50
+  return_6m: 0.30
+
+risk_adjusted_return_weights:
+  sharpe_6m: 0.40
+  sharpe_12m: 0.40
+  calmar_12m: 0.20
+
+backtest:
+  transaction_cost_bps: 25
+  execution_lag_days: 1

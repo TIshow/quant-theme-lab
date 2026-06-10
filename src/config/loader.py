@@ -58,6 +58,23 @@ def get_benchmark(config: dict, country: str | None = None) -> str:
     return benchmarks.get("us", "SPY")
 
 
+def get_cost_benchmarks(config: dict) -> list[dict]:
+    """Return the theme's cost-driver indices (rice, grains, fuel, FX, ...).
+
+    Each entry is normalized to a dict with 'ticker' (yfinance symbol) and
+    'label'. Used to auto-compare margin-sensitive stocks (中食 / 物流) against
+    input costs, analogous to how semiconductor themes compare against SOXX.
+    """
+    drivers = config.get("cost_benchmarks", []) or []
+    out = []
+    for d in drivers:
+        if isinstance(d, str):
+            out.append({"ticker": d, "label": d})
+        elif isinstance(d, dict) and d.get("ticker"):
+            out.append({"ticker": d["ticker"], "label": d.get("label", d["ticker"])})
+    return out
+
+
 def list_available_themes(config_dir: str = "config/themes") -> list[str]:
     return [p.stem for p in Path(config_dir).glob("*.yaml")]
 
