@@ -217,6 +217,28 @@ stocks:
     themes:
       semiconductor: 3
 
+  - ticker: "6965.T"
+    name: "Hamamatsu Photonics"
+    country: "JP"
+    sector: "technology"
+    themes:
+      semiconductor: 3
+      quantum_computing: 2
+
+  - ticker: "6702.T"
+    name: "Fujitsu"
+    country: "JP"
+    sector: "technology"
+    themes:
+      quantum_computing: 3
+
+  - ticker: "6701.T"
+    name: "NEC"
+    country: "JP"
+    sector: "technology"
+    themes:
+      quantum_computing: 3
+
   - ticker: "7011.T"
     name: "Mitsubishi Heavy Industries"
     country: "JP"
@@ -369,6 +391,7 @@ stocks:
       semiconductor: 5
       ai_infrastructure: 5
       data_center: 3
+      quantum_computing: 2
 
   - ticker: "TSM"
     name: "TSMC"
@@ -474,6 +497,7 @@ stocks:
     themes:
       ai_infrastructure: 3
       data_center: 3
+      quantum_computing: 2
 
   - ticker: "GOOGL"
     name: "Alphabet"
@@ -482,6 +506,7 @@ stocks:
     themes:
       ai_infrastructure: 3
       data_center: 2
+      quantum_computing: 2
 
   - ticker: "EQIX"
     name: "Equinix"
@@ -525,3 +550,45 @@ stocks:
     sector: "real_estate"
     themes:
       data_center: 3
+
+  - ticker: "IONQ"
+    name: "IonQ"
+    country: "US"
+    sector: "technology"
+    themes:
+      quantum_computing: 5
+
+  - ticker: "RGTI"
+    name: "Rigetti Computing"
+    country: "US"
+    sector: "technology"
+    themes:
+      quantum_computing: 5
+
+  - ticker: "QBTS"
+    name: "D-Wave Quantum"
+    country: "US"
+    sector: "technology"
+    themes:
+      quantum_computing: 5
+
+  - ticker: "QUBT"
+    name: "Quantum Computing Inc"
+    country: "US"
+    sector: "technology"
+    themes:
+      quantum_computing: 5
+
+  - ticker: "IBM"
+    name: "IBM"
+    country: "US"
+    sector: "technology"
+    themes:
+      quantum_computing: 3
+
+  - ticker: "HON"
+    name: "Honeywell"
+    country: "US"
+    sector: "industrials"
+    themes:
+      quantum_computing: 3
